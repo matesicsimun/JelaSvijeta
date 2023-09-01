@@ -11,10 +11,12 @@ use App\Entity\Tag;
 use App\Entity\Translation;
 use Doctrine\ORM\EntityManagerInterface;
 use Faker\Factory;
+use Faker\Generator;
 
 class DatabaseOperator
 {
     private EntityManagerInterface $em;
+    private array $languages = ['hr_HR', 'en_EN', 'cs_CZ', 'de_DE', 'fr_FR'];
 
     public function __construct(EntityManagerInterface $em)
     {
@@ -25,137 +27,15 @@ class DatabaseOperator
     {
         // TODO add check if DB is already filled
 
-        //status
-        $statusActive = new Status();
-        $statusActive->setName('active');
-        $this->em->persist($statusActive);
+        $statuses = $this->createAndSaveStatuses();
+        $this->createAndSaveLanguages();
+        $languageFakers = $this->createAndSaveLanguageFakers();
 
-        $statusModified = new Status();
-        $statusModified->setName('modified');
-        $this->em->persist($statusModified);
+        $codeFaker = Factory::create();
+        $codeFaker->seed(100);
 
-        $statusDeleted = new Status();
-        $statusDeleted->setName('deleted');
-        $this->em->persist($statusDeleted);
-        
-        $statuses = [$statusActive, $statusDeleted, $statusModified];
+        $this->createAndSaveDishes($codeFaker, $statuses, $languageFakers);
 
-        $this->em->flush();
-
-        //languages
-        $languages = ['hr_HR', 'en_EN', 'cs_CZ', 'de_DE', 'fr_FR'];
-        $languageFakers = [];
-        foreach ($languages as $lang) {
-            $language = new Language();
-            $language->setCode($lang);
-            $this->em->persist($language);
-
-            //create language faker
-            $langFaker = Factory::create($lang);
-            $langFaker->seed(100);
-            $languageFakers[$lang] = $langFaker;
-        }
-
-        $this->em->flush();
-
-        // create general faker for codes
-        $faker = Factory::create();
-        $faker->seed(100);
-
-        //dishes
-        $numOfDishes = 20;
-        for ($i = 0; $i < $numOfDishes; $i++) {
-            $dish = new Dish();
-            $dish->setTitleCode($faker->unique()->word());
-            $dish->setDescriptionCode($faker->unique()->word());
-            $dish->setStatus($statuses[mt_rand(0, 2)]);
-
-            // create translations for dish title and description
-            foreach ($languages as $lang) {
-                $titleTranslation = new Translation();
-                $titleTranslation->setCode($dish->getTitleCode());
-                $titleTranslation->setLanguageCode($lang);
-                $titleTranslation->setTranslation($languageFakers[$lang]->name());
-
-                $descTranslation = new Translation();
-                $descTranslation->setCode($dish->getDescriptionCode());
-                $descTranslation->setLanguageCode($lang);
-                $descTranslation->setTranslation($languageFakers[$lang]->name());
-
-                $this->em->persist($titleTranslation);
-                $this->em->persist($descTranslation);
-            }
-
-            // create and set category if needed
-            if (mt_rand(0, 1)) {
-                $category = new Category();
-                $category->setSlug($faker->slug());
-                $category->setNameCode($faker->unique()->city());
-
-                $this->em->persist($category);
-
-                // create translations for this categories' name code
-                foreach ($languages as $lang) {
-                    $translation = new Translation();
-                    $translation->setCode($category->getNameCode());
-                    $translation->setLanguageCode($lang);
-
-                    $langFaker = $languageFakers[$lang];
-                    $translation->setTranslation($langFaker->name());
-
-                    $this->em->persist($translation);
-                }
-
-                $dish->setCategory($category);
-            }
-
-            // create and set tags (at least one)
-            $numOfTags = mt_rand(1, 4); // TODO - extract "magic numbers" to constants (multiple occurrences)
-            for ($j = 0; $j < $numOfTags; $j++) {
-                $tag = new Tag();
-                $tag->setSlug($faker->slug());
-                $tag->setNameCode($faker->unique()->word());
-
-                $this->em->persist($tag);
-
-                $dish->addTag($tag);
-
-                //create translations for this tag's name code
-                foreach ($languages as $lang) {
-                    $translation = new Translation();
-                    $translation->setCode($tag->getNameCode());
-                    $translation->setLanguageCode($lang);
-
-                    $langFaker = $languageFakers[$lang];
-                    $translation->setTranslation($langFaker->name());
-
-                    $this->em->persist($translation);
-                }
-            }
-
-            $numOfIngredients = mt_rand(1, 3);
-            for ($k = 0; $k < $numOfIngredients; $k++) {
-                $ingredient = new Ingredient();
-                $ingredient->setSlug($faker->slug());
-                $ingredient->setNameCode($faker->unique()->word());
-
-                $this->em->persist($ingredient);
-
-                $dish->addIngredient($ingredient);
-
-                foreach ($languages as $lang) {
-                    $translation = new Translation();
-                    $translation->setCode($ingredient->getNameCode());
-                    $translation->setLanguageCode($lang);
-
-                    $langFaker = $languageFakers[$lang];
-                    $translation->setTranslation($langFaker->name());
-
-                    $this->em->persist($translation);
-                }
-            }
-            $this->em->persist($dish);
-        }
         $this->em->flush();
     }
 
@@ -168,5 +48,138 @@ class DatabaseOperator
         $this->em->createQuery('DELETE FROM App\Entity\Ingredient')->execute();
         $this->em->createQuery('DELETE FROM App\Entity\Tag')->execute();
         $this->em->createQuery('DELETE FROM App\Entity\Translation')->execute();
+    }
+
+    private function createAndSaveStatuses(): array
+    {
+        $statusActive = new Status();
+        $statusActive->setName('active');
+
+        $statusModified = new Status();
+        $statusModified->setName('modified');
+
+        $statusDeleted = new Status();
+        $statusDeleted->setName('deleted');
+
+        $this->em->persist($statusModified);
+        $this->em->persist($statusActive);
+        $this->em->persist($statusDeleted);
+
+        return [$statusActive, $statusDeleted, $statusModified];
+    }
+
+    private function createAndSaveLanguages(): void
+    {
+        foreach ($this->languages as $lang) {
+            $language = new Language();
+            $language->setCode($lang);
+            $this->em->persist($language);
+        }
+    }
+
+    private function createAndSaveLanguageFakers(): array
+    {
+        $languageFakers = [];
+        foreach ($this->languages as $lang) {
+            //create language faker
+            $langFaker = Factory::create($lang);
+            $langFaker->seed(100);
+            $languageFakers[$lang] = $langFaker;
+        }
+
+        return $languageFakers;
+    }
+
+    // TODO - fix issue that no two dishes will have the same category, share any tag or ingredient
+    // this is due to tags, categories and ingredients being generated along with dishes
+    // one solution is to generate tags, categories and ingredients before generating dishes
+    // and then randomly selecting between existing categories, tags and ingredients
+    // which could be cached after creation
+    private function createAndSaveDishes(Generator $codeFaker, array $statuses, array $languageFakers): void
+    {
+        $numOfDishes = 20;
+        for ($i = 0; $i < $numOfDishes; $i++) {
+            $dish = new Dish();
+
+            $dish->setTitleCode($codeFaker->unique()->word());
+            $dish->setDescriptionCode($codeFaker->unique()->word());
+            $dish->setStatus($statuses[mt_rand(0, 2)]);
+
+            foreach ($this->languages as $lang) {
+                $this->createAndSaveTranslation($dish->getTitleCode(), $lang, $languageFakers[$lang]);
+                $this->createAndSaveTranslation($dish->getDescriptionCode(), $lang, $languageFakers[$lang]);
+            }
+
+            if (mt_rand(0, 1)) {
+                $dish->setCategory($this->createAndSaveCategory($codeFaker, $languageFakers));
+            }
+
+            $numOfTags = mt_rand(1, 4); // TODO - extract "magic numbers" to constants (multiple occurrences)
+            for ($j = 0; $j < $numOfTags; $j++) {
+                $dish->addTag($this->createAndSaveTag($codeFaker, $languageFakers));
+            }
+
+            $numOfIngredients = mt_rand(1, 3);
+            for ($k = 0; $k < $numOfIngredients; $k++) {
+                $dish->addIngredient($this->createAndSaveIngredient($codeFaker, $languageFakers));
+            }
+
+            $this->em->persist($dish);
+        }
+    }
+
+    private function createAndSaveTranslation(string $code, string $lang, $langFaker): void
+    {
+        $translation = new Translation();
+        $translation->setCode($code);
+        $translation->setLanguageCode($lang);
+        $translation->setTranslation($langFaker->name());
+
+        $this->em->persist($translation);
+    }
+
+    private function createAndSaveCategory(Generator $codeFaker, array $languageFakers): Category
+    {
+        $category = new Category();
+        $category->setSlug($codeFaker->slug());
+        $category->setNameCode($codeFaker->unique()->city());
+
+        $this->em->persist($category);
+
+        foreach ($this->languages as $lang) {
+            $this->createAndSaveTranslation($category->getNameCode(), $lang, $languageFakers[$lang]);
+        }
+
+        return $category;
+    }
+
+    private function createAndSaveTag(Generator $codeFaker, array $languageFakers): Tag
+    {
+        $tag = new Tag();
+        $tag->setSlug($codeFaker->slug());
+        $tag->setNameCode($codeFaker->unique()->word());
+
+        $this->em->persist($tag);
+
+        foreach ($this->languages as $lang) {
+            $this->createAndSaveTranslation($tag->getNameCode(), $lang, $languageFakers[$lang]);
+        }
+
+        return $tag;
+    }
+
+    private function createAndSaveIngredient(Generator $codeFaker, array $languageFakers): Ingredient
+    {
+        $ingredient = new Ingredient();
+        $ingredient->setSlug($codeFaker->slug());
+        $ingredient->setNameCode($codeFaker->unique()->word());
+
+        $this->em->persist($ingredient);
+
+        foreach ($this->languages as $lang) {
+            $this->createAndSaveTranslation($ingredient->getNameCode(), $lang, $languageFakers[$lang]);
+        }
+
+        return $ingredient;
     }
 }
