@@ -70,6 +70,22 @@ class DatabaseOperator
             $dish->setDescriptionCode($faker->unique()->word());
             $dish->setStatus($statuses[mt_rand(0, 2)]);
 
+            // create translations for dish title and description
+            foreach ($languages as $lang) {
+                $titleTranslation = new Translation();
+                $titleTranslation->setCode($dish->getTitleCode());
+                $titleTranslation->setLanguageCode($lang);
+                $titleTranslation->setTranslation($languageFakers[$lang]->name());
+
+                $descTranslation = new Translation();
+                $descTranslation->setCode($dish->getDescriptionCode());
+                $descTranslation->setLanguageCode($lang);
+                $descTranslation->setTranslation($languageFakers[$lang]->name());
+
+                $this->em->persist($titleTranslation);
+                $this->em->persist($descTranslation);
+            }
+
             // create and set category if needed
             if (mt_rand(0, 1)) {
                 $category = new Category();
