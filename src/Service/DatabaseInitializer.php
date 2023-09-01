@@ -13,10 +13,18 @@ use Doctrine\ORM\EntityManagerInterface;
 use Faker\Factory;
 use Faker\Generator;
 
-class DatabaseOperator
+class DatabaseInitializer
 {
     private EntityManagerInterface $em;
+    private int $MIN_TAGS_PER_DISH = 1;
+    private int $MAX_TAGS_PER_DISH = 4;
     private array $languages = ['hr_HR', 'en_EN', 'cs_CZ', 'de_DE', 'fr_FR'];
+    private int $numberOfCategories = 5;
+    private array $categories = [];
+    private int $numberOfIngredients = 10;
+    private array $ingredients = [];
+    private int $numberOfTags = 7;
+    private array $tags = [];
 
     public function __construct(EntityManagerInterface $em)
     {
@@ -34,6 +42,19 @@ class DatabaseOperator
         $codeFaker = Factory::create();
         $codeFaker->seed(100);
 
+        // TODO - perhaps don't make categories, ingredients and tags a property of the service (anti-pattern ?)
+        for($i = 0; $i < $this->numberOfCategories; $i++) {
+            $this->categories[] = $this->createAndSaveCategory($codeFaker, $languageFakers);
+        }
+
+        for($i = 0; $i < $this->numberOfIngredients; $i++) {
+            $this->ingredients[] = $this->createAndSaveIngredient($codeFaker, $languageFakers);
+        }
+
+        for($i = 0; $i < $this->numberOfTags; $i++) {
+            $this->tags[] = $this->createAndSaveTag($codeFaker, $languageFakers);
+        }
+
         $this->createAndSaveDishes($codeFaker, $statuses, $languageFakers);
 
         $this->em->flush();
@@ -41,6 +62,7 @@ class DatabaseOperator
 
     public function cleanupDatabase(): void
     {
+        //TODO - delete properly (with cascading opt)
         $this->em->createQuery('DELETE FROM App\Entity\Status')->execute();
         $this->em->createQuery('DELETE FROM App\Entity\Language')->execute();
         $this->em->createQuery('DELETE FROM App\Entity\Dish')->execute();
@@ -90,11 +112,6 @@ class DatabaseOperator
         return $languageFakers;
     }
 
-    // TODO - fix issue that no two dishes will have the same category, share any tag or ingredient
-    // this is due to tags, categories and ingredients being generated along with dishes
-    // one solution is to generate tags, categories and ingredients before generating dishes
-    // and then randomly selecting between existing categories, tags and ingredients
-    // which could be cached after creation
     private function createAndSaveDishes(Generator $codeFaker, array $statuses, array $languageFakers): void
     {
         $numOfDishes = 20;
@@ -111,17 +128,17 @@ class DatabaseOperator
             }
 
             if (mt_rand(0, 1)) {
-                $dish->setCategory($this->createAndSaveCategory($codeFaker, $languageFakers));
+                $dish->setCategory($this->categories[mt_rand(0, $this->numberOfCategories - 1)]);
             }
 
-            $numOfTags = mt_rand(1, 4); // TODO - extract "magic numbers" to constants (multiple occurrences)
+            $numOfTags = mt_rand($this->MIN_TAGS_PER_DISH, $this->MAX_TAGS_PER_DISH);
             for ($j = 0; $j < $numOfTags; $j++) {
-                $dish->addTag($this->createAndSaveTag($codeFaker, $languageFakers));
+                $dish->addTag($this->tags[mt_rand(0, $this->numberOfTags - 1)]);
             }
 
             $numOfIngredients = mt_rand(1, 3);
             for ($k = 0; $k < $numOfIngredients; $k++) {
-                $dish->addIngredient($this->createAndSaveIngredient($codeFaker, $languageFakers));
+                $dish->addIngredient($this->ingredients[mt_rand(0, $this->numberOfIngredients - 1)]);
             }
 
             $this->em->persist($dish);

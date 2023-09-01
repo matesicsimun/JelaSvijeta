@@ -2,17 +2,16 @@
 
 namespace App\Controller;
 
-use App\Service\DatabaseOperator;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\DatabaseInitializer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
-class DatabaseOperationsController extends AbstractController
+class DbInitController extends AbstractController
 {
 
     #[Route('/fillDB')]
-    public function fillDB(DatabaseOperator $dbOperator): Response
+    public function fillDB(DatabaseInitializer $dbOperator): Response
     {
         $dbOperator->fillDatabase();
 
@@ -20,7 +19,7 @@ class DatabaseOperationsController extends AbstractController
     }
 
     #[Route('/cleanupDB')]
-    public function cleanupDB(DatabaseOperator $dbOperator): Response
+    public function cleanupDB(DatabaseInitializer $dbOperator): Response
     {
         $dbOperator->cleanupDatabase();
 
