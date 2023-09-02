@@ -123,6 +123,18 @@ class Dish
         return $this;
     }
 
+    public function clearTags(): static
+    {
+        $this->tags = new ArrayCollection();
+
+        return $this;
+    }
+
+    public function setTags(ArrayCollection $tags): void
+    {
+        $this->tags = $tags;
+    }
+
     /**
      * @return Collection<int, Ingredient>
      */

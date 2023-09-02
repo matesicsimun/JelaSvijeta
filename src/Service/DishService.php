@@ -3,9 +3,11 @@
 namespace App\Service;
 
 use App\Converter\CodeNameConverter;
+use App\Dto\DishDto;
 use App\Entity\Dish;
 use App\Entity\Status;
 use App\Entity\Translation;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Symfony\Component\HttpFoundation\Request;
@@ -102,39 +104,40 @@ class DishService
         $normalizers = [new ObjectNormalizer(null, $codeNameConverter)];
         $serializer = new Serializer($normalizers, $encoders);
 
-        $this->translate($dishes, $lang, $with);
-
         $attributes = ['tags', 'ingredients', 'category'];
         $ignoredAttributes = array_merge(['dateModified'], array_diff($attributes, $with));
 
-        /*foreach($dishes as $dish) {
-            $this->createTranslatedJson($dish, $lang);
-        }*/
+        $json = $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => $ignoredAttributes]);
 
-        return $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => $ignoredAttributes]);
+        return $this->prepareJson($json, $lang, $with);
     }
 
-    // TODO - instead of changing existing objects, perhaps create DTO's
-    private function translate(array &$dishes, string $lang, array $with): void
-    {
+    private function prepareJson(string $json, string $lang, array $with): string {
+        $jsonDecoded = json_decode($json, true);
         $translationRepo = $this->em->getRepository(Translation::class);
-        foreach ($dishes as $dish) {
-            $title = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dish->getTitleCode()])->getTranslation();
-            $dish->setTitleCode($title);
+        foreach($jsonDecoded as &$dishEntry) {
+            $dishEntry['title'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dishEntry['title']])->getTranslation();
+            $dishEntry['description'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dishEntry['description']])->getTranslation();
+            $dishEntry['status'] = $dishEntry['status']['name'];
 
-            $desc = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dish->getDescriptionCode()])->getTranslation();
-            $dish->setDescriptionCode($desc);
+            if (in_array('category', $with) && key_exists('category', $dishEntry) && $dishEntry['category'] != null) {
+                $dishEntry['category']['name'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dishEntry['category']['name']])->getTranslation();
+            }
 
-            // TODO translate other things in the json...
+            if (in_array('tags', $with)) {
+                foreach($dishEntry['tags'] as &$dishEntryTags) {
+                    $dishEntryTags['name'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dishEntryTags['name']])->getTranslation();
+                }
+            }
+
+            if (in_array('ingredients', $with)) {
+                foreach($dishEntry['ingredients'] as &$ingredient) {
+                    $ingredient['name'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $ingredient['name']])->getTranslation();
+                }
+            }
         }
+
+        return json_encode($jsonDecoded);
     }
 
-    private function createTranslatedJson(Dish $dish, $lang): string
-    {
-        $encoders = [new JsonEncoder()];
-        $normalizers = [new ObjectNormalizer()];
-        $serializer = new Serializer($normalizers, $encoders);
-
-        return '';
-    }
 }
