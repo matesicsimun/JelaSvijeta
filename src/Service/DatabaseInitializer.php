@@ -16,14 +16,14 @@ use Faker\Generator;
 class DatabaseInitializer
 {
     private EntityManagerInterface $em;
-    private int $MIN_TAGS_PER_DISH = 1;
-    private int $MAX_TAGS_PER_DISH = 4;
-    private array $languages = ['hr_HR', 'en_EN', 'cs_CZ', 'de_DE', 'fr_FR'];
-    private int $numberOfCategories = 5;
+    private const MIN_TAGS_PER_DISH = 1;
+    private const MAX_TAGS_PER_DISH = 4;
+    private const LANGUAGES = ['hr_HR', 'en_EN', 'cs_CZ', 'de_DE', 'fr_FR'];
+    private const NUMBER_OF_CATEGORIES = 5;
+    private const NUMBER_OF_TAGS = 7;
+    private const NUMBER_OF_INGREDIENTS = 10;
     private array $categories = [];
-    private int $numberOfIngredients = 10;
     private array $ingredients = [];
-    private int $numberOfTags = 7;
     private array $tags = [];
 
     public function __construct(EntityManagerInterface $em)
@@ -43,15 +43,15 @@ class DatabaseInitializer
         $codeFaker->seed(100);
 
         // TODO - perhaps don't make categories, ingredients and tags a property of the service (anti-pattern ?)
-        for($i = 0; $i < $this->numberOfCategories; $i++) {
+        for($i = 0; $i < self::NUMBER_OF_CATEGORIES; $i++) {
             $this->categories[] = $this->createAndSaveCategory($codeFaker, $languageFakers);
         }
 
-        for($i = 0; $i < $this->numberOfIngredients; $i++) {
+        for($i = 0; $i < self::NUMBER_OF_INGREDIENTS; $i++) {
             $this->ingredients[] = $this->createAndSaveIngredient($codeFaker, $languageFakers);
         }
 
-        for($i = 0; $i < $this->numberOfTags; $i++) {
+        for($i = 0; $i < self::NUMBER_OF_TAGS; $i++) {
             $this->tags[] = $this->createAndSaveTag($codeFaker, $languageFakers);
         }
 
@@ -92,7 +92,7 @@ class DatabaseInitializer
 
     private function createAndSaveLanguages(): void
     {
-        foreach ($this->languages as $lang) {
+        foreach (self::LANGUAGES as $lang) {
             $language = new Language();
             $language->setCode($lang);
             $this->em->persist($language);
@@ -102,7 +102,7 @@ class DatabaseInitializer
     private function createAndSaveLanguageFakers(): array
     {
         $languageFakers = [];
-        foreach ($this->languages as $lang) {
+        foreach (self::LANGUAGES as $lang) {
             $langFaker = Factory::create($lang);
             $langFaker->seed(100);
             $languageFakers[$lang] = $langFaker;
@@ -122,23 +122,23 @@ class DatabaseInitializer
             $dish->setStatus($statuses[mt_rand(0, 2)]);
             $dish->setDateModified($basicFaker->dateTime());
 
-            foreach ($this->languages as $lang) {
+            foreach (self::LANGUAGES as $lang) {
                 $this->createAndSaveTranslation($dish->getTitleCode(), $lang, $languageFakers[$lang]);
                 $this->createAndSaveTranslation($dish->getDescriptionCode(), $lang, $languageFakers[$lang]);
             }
 
             if (mt_rand(0, 1)) {
-                $dish->setCategory($this->categories[mt_rand(0, $this->numberOfCategories - 1)]);
+                $dish->setCategory($this->categories[mt_rand(0, self::NUMBER_OF_CATEGORIES - 1)]);
             }
 
-            $numOfTags = mt_rand($this->MIN_TAGS_PER_DISH, $this->MAX_TAGS_PER_DISH);
+            $numOfTags = mt_rand(self::MIN_TAGS_PER_DISH, self::MAX_TAGS_PER_DISH);
             for ($j = 0; $j < $numOfTags; $j++) {
-                $dish->addTag($this->tags[mt_rand(0, $this->numberOfTags - 1)]);
+                $dish->addTag($this->tags[mt_rand(0, self::NUMBER_OF_TAGS - 1)]);
             }
 
             $numOfIngredients = mt_rand(1, 3);
             for ($k = 0; $k < $numOfIngredients; $k++) {
-                $dish->addIngredient($this->ingredients[mt_rand(0, $this->numberOfIngredients - 1)]);
+                $dish->addIngredient($this->ingredients[mt_rand(0, self::NUMBER_OF_INGREDIENTS - 1)]);
             }
 
             $this->em->persist($dish);
@@ -164,7 +164,7 @@ class DatabaseInitializer
 
         $this->em->persist($category);
 
-        foreach ($this->languages as $lang) {
+        foreach (self::LANGUAGES as $lang) {
             $this->createAndSaveTranslation($category->getNameCode(), $lang, $languageFakers[$lang]);
         }
 
@@ -179,7 +179,7 @@ class DatabaseInitializer
 
         $this->em->persist($tag);
 
-        foreach ($this->languages as $lang) {
+        foreach (self::LANGUAGES as $lang) {
             $this->createAndSaveTranslation($tag->getNameCode(), $lang, $languageFakers[$lang]);
         }
 
@@ -194,7 +194,7 @@ class DatabaseInitializer
 
         $this->em->persist($ingredient);
 
-        foreach ($this->languages as $lang) {
+        foreach (self::LANGUAGES as $lang) {
             $this->createAndSaveTranslation($ingredient->getNameCode(), $lang, $languageFakers[$lang]);
         }
 

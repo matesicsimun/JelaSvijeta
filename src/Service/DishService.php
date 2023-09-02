@@ -17,9 +17,9 @@ use Symfony\Component\Serializer\Serializer;
 class DishService
 {
     private EntityManagerInterface $em;
-    private string $DEFAULT_STATUS = 'active';
-    private string $DEFAULT_LANG = 'en';
-    private int $DEFAULT_PAGE_ITEMS = 10;
+    private const DEFAULT_STATUS = 'active';
+    private const DEFAULT_LANG = 'en';
+    private const DEFAULT_PAGE_ITEMS = 10;
 
     public function __construct(EntityManagerInterface $em) {
         $this->em = $em;
@@ -35,7 +35,7 @@ class DishService
     // TODO - replace request with just params (service should not depend on request)
     public function findDishes(Request $request): string
     {
-        $defaultStatus = $this->em->getRepository(Status::class)->findOneBy(['name' => $this->DEFAULT_STATUS]);
+        $defaultStatus = $this->em->getRepository(Status::class)->findOneBy(['name' => self::DEFAULT_STATUS]);
 
         $qb = $this->em->getRepository('App\Entity\Dish')->createQueryBuilder('o');
 
@@ -80,7 +80,7 @@ class DishService
 
         $paginator = new Paginator($query, $fetchJoinCollection = true);
 
-        $itemsPerPage = $request->query->get('per_page') ?: $this->DEFAULT_PAGE_ITEMS;
+        $itemsPerPage = $request->query->get('per_page') ?: self::DEFAULT_PAGE_ITEMS;
         $paginator->getQuery()->setMaxResults($itemsPerPage);
 
         if ($request->query->get('page') != null) {
@@ -90,7 +90,7 @@ class DishService
 
         $dishes = $paginator->getQuery()->getResult();
 
-        $lang = $request->query->get('lang') ?: $this->DEFAULT_LANG;
+        $lang = $request->query->get('lang') ?: self::DEFAULT_LANG;
 
         return $this->transformToJson($dishes, $lang, explode(',', $request->query->get('with')) ?: []);
     }
@@ -102,7 +102,7 @@ class DishService
         $normalizers = [new ObjectNormalizer(null, $codeNameConverter)];
         $serializer = new Serializer($normalizers, $encoders);
 
-        $this->translate($dishes, $lang);
+        $this->translate($dishes, $lang, $with);
 
         $attributes = ['tags', 'ingredients', 'category'];
         $ignoredAttributes = array_merge(['dateModified'], array_diff($attributes, $with));
