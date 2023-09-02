@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Converter\CodeNameConverter;
+use App\Entity\Dish;
 use App\Entity\Status;
 use App\Entity\Translation;
 use Doctrine\ORM\EntityManagerInterface;
@@ -70,19 +71,52 @@ class DishService
 
         $query = $qb->getQuery();
 
+        $totalDishesMatchingCriteria = sizeof($query->getResult());
+
         $paginator = new Paginator($query, $fetchJoinCollection = true);
         $itemsPerPage = $request->query->get('per_page') ?: self::DEFAULT_PAGE_ITEMS;
         $paginator->getQuery()->setMaxResults($itemsPerPage);
+        $pageNum = 1;
         if ($request->query->get('page') != null) {
             $pageNum = $request->query->get('page');
             $paginator->getQuery()->setFirstResult($itemsPerPage * ($pageNum - 1));
         }
+
         $dishes = $paginator->getQuery()->getResult();
 
         $lang = $request->query->get('lang') ?: self::DEFAULT_LANG;
         $with = explode(',', $request->query->get('with')) ?: [];
 
-        return $this->transformToJson($dishes, $lang, $with);
+        $totalPages = intdiv($totalDishesMatchingCriteria, $itemsPerPage) + 1;
+
+        $links = $this->createPaginationLinks($request, $pageNum, $totalPages);
+        $data = $this->createData($dishes, $lang, $with);
+        $meta = $this->createMetaDataEntry($pageNum, $itemsPerPage, $totalDishesMatchingCriteria);
+
+        $completeResult = ['meta' => $meta, 'data' => $data, 'links' => $links];
+
+        return json_encode($completeResult);
+    }
+
+    private function createPaginationLinks(Request $request, int $currentPage, int $totalPages): array
+    {
+        $prevReq = ($currentPage == 1) ? null : Request::create($request->getUri(), 'GET', ['page' => $currentPage - 1]);
+        $nextReq = ($currentPage >= $totalPages) ? null : Request::create($request->getUri(), 'GET', ['page' => $currentPage + 1]);
+        return [
+            'prev' => $prevReq?->getUri(),
+            'next' => urldecode($nextReq?->getUri()),
+            'self' => $request->getUri()
+        ];
+    }
+
+    private function createMetaDataEntry(int $page, int $itemsPerPage, int $total): array
+    {
+        return [
+            'currentPage' => $page,
+            'totalItems' => $total,
+            'itemsPerPage' => $itemsPerPage,
+            'totalPages' => intdiv($total, $itemsPerPage) + 1
+        ];
     }
 
     private function getParams(Request $request): array
@@ -98,8 +132,7 @@ class DishService
         ];
     }
 
-
-    private function transformToJson(array $dishes, string $lang, array $with = []): string
+    private function createData(array $dishes, string $lang, array $with = []): array
     {
         $encoders = [new JsonEncoder()];
         $codeNameConverter = new CodeNameConverter();
@@ -111,10 +144,10 @@ class DishService
 
         $json = $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => $ignoredAttributes]);
 
-        return $this->prepareJson($json, $lang, $with);
+        return $this->prepareData($json, $lang, $with);
     }
 
-    private function prepareJson(string $json, string $lang, array $with): string {
+    private function prepareData(string $json, string $lang, array $with): array {
         $jsonDecoded = json_decode($json, true);
         $translationRepo = $this->em->getRepository(Translation::class);
         foreach($jsonDecoded as &$dishEntry) {
@@ -139,7 +172,7 @@ class DishService
             }
         }
 
-        return json_encode($jsonDecoded);
+        return $jsonDecoded;
     }
 
 }
