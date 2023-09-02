@@ -2,19 +2,23 @@
 
 namespace App\Service;
 
-use App\Entity\Dish;
 use App\Entity\Status;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Criteria;
+use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\LazyCriteriaCollection;
+use Doctrine\ORM\Tools\Pagination\Paginator;
 use Symfony\Component\HttpFoundation\Request;
-use function Symfony\Component\DependencyInjection\Loader\Configurator\expr;
+use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
+use Symfony\Component\Serializer\Mapping\Loader\AnnotationLoader;
+use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
+use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+use Symfony\Component\Serializer\Serializer;
 
 class DishService
 {
     private EntityManagerInterface $em;
     private string $DEFAULT_STATUS = 'active';
+    private int $DEFAULT_PAGE_ITEMS = 10;
 
     public function __construct(EntityManagerInterface $em) {
         $this->em = $em;
@@ -23,7 +27,7 @@ class DishService
     // TODO - extract code to repository impl?
     // TODO - add param validation & sanitization
     // TODO - replace request with just params (service should not depend on request)
-    public function findDishes(Request $request): array
+    public function findDishes(Request $request): string
     {
         $defaultStatus = $this->em->getRepository(Status::class)->findOneBy(['name' => $this->DEFAULT_STATUS]);
 
@@ -34,7 +38,8 @@ class DishService
             $diffTime = $request->query->get('diff_time');
             $date = new \DateTime();
             $date->setTimestamp($diffTime);
-            //$qb->where('tsModified' > :diffTime)
+            $qb->where('o.dateModified > :diffTime');
+            $params['diffTime'] = $date;
         } else {
             $qb->where('o.status = :statusId');
             $params = ['statusId' => $defaultStatus->getId()];
@@ -63,12 +68,32 @@ class DishService
             }
         }
 
-
         $qb->setParameters($params);
 
-        $result = $qb->getQuery()->getResult();
+        $query = $qb->getQuery();
 
-        return $result;
+        $paginator = new Paginator($query, $fetchJoinCollection = true);
+
+        $itemsPerPage = $request->query->get('per_page') ?: $this->DEFAULT_PAGE_ITEMS;
+        $paginator->getQuery()->setMaxResults($itemsPerPage);
+
+        if ($request->query->get('page') != null) {
+            $pageNum = $request->query->get('page');
+            $paginator->getQuery()->setFirstResult($itemsPerPage * ($pageNum - 1));
+        }
+
+        $dishes = $paginator->getQuery()->getResult();
+        $json = $this->transformToJson($dishes, $request->query->get('with'));
+
+        return $json;
     }
 
+    public function transformToJson(array $dishes, array $with = null) {
+        $encoders = [new JsonEncoder()];
+        $normalizers = [new ObjectNormalizer()];
+        $serializer = new Serializer($normalizers, $encoders);
+
+        return $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => ['dateModified']]);
+        //return $serializer->serialize($serializer->normalize($dishes), 'json');
+    }
 }

@@ -14,7 +14,7 @@ class DishController extends AbstractController
     public function getDishes(Request $request, DishService $dishService): Response
     {
         $dishes = $dishService->findDishes($request);
-        return new Response('Pronađeno = ' . count($dishes));
+        return new Response($dishes);
     }
 
 }

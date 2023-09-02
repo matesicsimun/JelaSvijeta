@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Ignore;
 
 #[ORM\Entity(repositoryClass: DishRepository::class)]
 class Dish
@@ -35,6 +36,7 @@ class Dish
     #[ORM\ManyToMany(targetEntity: Ingredient::class)]
     private Collection $ingredients;
 
+    #[Ignore]
     #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     private ?\DateTimeInterface $dateModified = null;
 

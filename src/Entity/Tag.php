@@ -21,12 +21,9 @@ class Tag
     #[ORM\Column(length: 120)]
     private ?string $slug = null;
 
-    #[ORM\ManyToMany(targetEntity: Dish::class, mappedBy: 'tags')]
-    private Collection $dishes;
 
     public function __construct()
     {
-        $this->dishes = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -58,30 +55,4 @@ class Tag
         return $this;
     }
 
-    /**
-     * @return Collection<int, Dish>
-     */
-    public function getDishes(): Collection
-    {
-        return $this->dishes;
-    }
-
-    public function addDish(Dish $dish): static
-    {
-        if (!$this->dishes->contains($dish)) {
-            $this->dishes->add($dish);
-            $dish->addTag($this);
-        }
-
-        return $this;
-    }
-
-    public function removeDish(Dish $dish): static
-    {
-        if ($this->dishes->removeElement($dish)) {
-            $dish->removeTag($this);
-        }
-
-        return $this;
-    }
 }
