@@ -32,7 +32,7 @@ class DishParamValidationService
         }
 
         $category = $query->get('category');
-        if ($category && !ctype_digit($category)) {
+        if ($category && !ctype_digit($category) && $category != 'NULL' && $category != '!NULL') {
             $errors['category'] = 'category identifier must represent integer';
         }
 
