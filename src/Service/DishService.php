@@ -2,6 +2,8 @@
 
 namespace App\Service;
 
+use App\Converter\CodeNameConverter;
+use App\Entity\Dish;
 use App\Entity\Status;
 use Doctrine\Common\Annotations\AnnotationReader;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,10 +20,16 @@ class DishService
 {
     private EntityManagerInterface $em;
     private string $DEFAULT_STATUS = 'active';
+    private string $DEFAULT_LANG = 'en';
     private int $DEFAULT_PAGE_ITEMS = 10;
 
     public function __construct(EntityManagerInterface $em) {
         $this->em = $em;
+    }
+
+    public function validateParams(Request $request): array
+    {
+
     }
 
     // TODO - extract code to repository impl?
@@ -83,17 +91,35 @@ class DishService
         }
 
         $dishes = $paginator->getQuery()->getResult();
-        $json = $this->transformToJson($dishes, $request->query->get('with'));
 
-        return $json;
+        $lang = $request->query->get('lang') ?: $this->DEFAULT_LANG;
+
+        return $this->transformToJson($dishes, $lang, explode(',', $request->query->get('with')) ?: []);
     }
 
-    public function transformToJson(array $dishes, array $with = null) {
+    public function transformToJson(array $dishes, string $lang, array $with = []): string
+    {
+        $encoders = [new JsonEncoder()];
+        $codeNameConverter = new CodeNameConverter();
+        $normalizers = [new ObjectNormalizer(null, $codeNameConverter)];
+        $serializer = new Serializer($normalizers, $encoders);
+
+        $attributes = ['tags', 'ingredients', 'category'];
+        $ignoredAttributes = array_merge(['dateModified'], array_diff($attributes, $with));
+
+        /*foreach($dishes as $dish) {
+            $this->createTranslatedJson($dish, $lang);
+        }*/
+
+        return $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => $ignoredAttributes]);
+    }
+
+    private function createTranslatedJson(Dish $dish, $lang): string
+    {
         $encoders = [new JsonEncoder()];
         $normalizers = [new ObjectNormalizer()];
         $serializer = new Serializer($normalizers, $encoders);
 
-        return $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => ['dateModified']]);
-        //return $serializer->serialize($serializer->normalize($dishes), 'json');
+        return '';
     }
 }
