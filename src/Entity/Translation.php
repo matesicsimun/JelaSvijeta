@@ -22,6 +22,9 @@ class Translation
     #[ORM\Column(length: 255)]
     private ?string $translation = null;
 
+    #[ORM\Column(length: 2)]
+    private ?string $shortCode = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -59,6 +62,18 @@ class Translation
     public function setTranslation(string $translation): static
     {
         $this->translation = $translation;
+
+        return $this;
+    }
+
+    public function getShortCode(): ?string
+    {
+        return $this->shortCode;
+    }
+
+    public function setShortCode(string $shortCode): static
+    {
+        $this->shortCode = $shortCode;
 
         return $this;
     }

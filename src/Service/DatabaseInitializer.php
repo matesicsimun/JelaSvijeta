@@ -150,6 +150,7 @@ class DatabaseInitializer
         $translation = new Translation();
         $translation->setCode($code);
         $translation->setLanguageCode($lang);
+        $translation->setShortCode(substr($lang, 0, 2));
         $translation->setTranslation($langFaker->name());
 
         $this->em->persist($translation);

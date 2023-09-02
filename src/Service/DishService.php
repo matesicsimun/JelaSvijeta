@@ -5,13 +5,11 @@ namespace App\Service;
 use App\Converter\CodeNameConverter;
 use App\Entity\Dish;
 use App\Entity\Status;
-use Doctrine\Common\Annotations\AnnotationReader;
+use App\Entity\Translation;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\Pagination\Paginator;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
-use Symfony\Component\Serializer\Mapping\Factory\ClassMetadataFactory;
-use Symfony\Component\Serializer\Mapping\Loader\AnnotationLoader;
 use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
@@ -104,6 +102,8 @@ class DishService
         $normalizers = [new ObjectNormalizer(null, $codeNameConverter)];
         $serializer = new Serializer($normalizers, $encoders);
 
+        $this->translate($dishes, $lang);
+
         $attributes = ['tags', 'ingredients', 'category'];
         $ignoredAttributes = array_merge(['dateModified'], array_diff($attributes, $with));
 
@@ -112,6 +112,21 @@ class DishService
         }*/
 
         return $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => $ignoredAttributes]);
+    }
+
+    // TODO - instead of changing existing objects, perhaps create DTO's
+    private function translate(array &$dishes, string $lang, array $with): void
+    {
+        $translationRepo = $this->em->getRepository(Translation::class);
+        foreach ($dishes as $dish) {
+            $title = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dish->getTitleCode()])->getTranslation();
+            $dish->setTitleCode($title);
+
+            $desc = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dish->getDescriptionCode()])->getTranslation();
+            $dish->setDescriptionCode($desc);
+
+            // TODO translate other things in the json...
+        }
     }
 
     private function createTranslatedJson(Dish $dish, $lang): string
