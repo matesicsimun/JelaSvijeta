@@ -103,7 +103,6 @@ class DatabaseInitializer
     {
         $languageFakers = [];
         foreach ($this->languages as $lang) {
-            //create language faker
             $langFaker = Factory::create($lang);
             $langFaker->seed(100);
             $languageFakers[$lang] = $langFaker;
