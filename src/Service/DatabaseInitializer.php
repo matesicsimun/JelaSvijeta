@@ -111,15 +111,16 @@ class DatabaseInitializer
         return $languageFakers;
     }
 
-    private function createAndSaveDishes(Generator $codeFaker, array $statuses, array $languageFakers): void
+    private function createAndSaveDishes(Generator $basicFaker, array $statuses, array $languageFakers): void
     {
         $numOfDishes = 20;
         for ($i = 0; $i < $numOfDishes; $i++) {
             $dish = new Dish();
 
-            $dish->setTitleCode($codeFaker->unique()->word());
-            $dish->setDescriptionCode($codeFaker->unique()->word());
+            $dish->setTitleCode($basicFaker->unique()->word());
+            $dish->setDescriptionCode($basicFaker->unique()->word());
             $dish->setStatus($statuses[mt_rand(0, 2)]);
+            $dish->setDateModified($basicFaker->dateTime());
 
             foreach ($this->languages as $lang) {
                 $this->createAndSaveTranslation($dish->getTitleCode(), $lang, $languageFakers[$lang]);
@@ -154,11 +155,11 @@ class DatabaseInitializer
         $this->em->persist($translation);
     }
 
-    private function createAndSaveCategory(Generator $codeFaker, array $languageFakers): Category
+    private function createAndSaveCategory(Generator $basicFaker, array $languageFakers): Category
     {
         $category = new Category();
-        $category->setSlug($codeFaker->slug());
-        $category->setNameCode($codeFaker->unique()->city());
+        $category->setSlug($basicFaker->slug());
+        $category->setNameCode($basicFaker->unique()->city());
 
         $this->em->persist($category);
 
@@ -169,11 +170,11 @@ class DatabaseInitializer
         return $category;
     }
 
-    private function createAndSaveTag(Generator $codeFaker, array $languageFakers): Tag
+    private function createAndSaveTag(Generator $basicFaker, array $languageFakers): Tag
     {
         $tag = new Tag();
-        $tag->setSlug($codeFaker->slug());
-        $tag->setNameCode($codeFaker->unique()->word());
+        $tag->setSlug($basicFaker->slug());
+        $tag->setNameCode($basicFaker->unique()->word());
 
         $this->em->persist($tag);
 
@@ -184,11 +185,11 @@ class DatabaseInitializer
         return $tag;
     }
 
-    private function createAndSaveIngredient(Generator $codeFaker, array $languageFakers): Ingredient
+    private function createAndSaveIngredient(Generator $basicFaker, array $languageFakers): Ingredient
     {
         $ingredient = new Ingredient();
-        $ingredient->setSlug($codeFaker->slug());
-        $ingredient->setNameCode($codeFaker->unique()->word());
+        $ingredient->setSlug($basicFaker->slug());
+        $ingredient->setNameCode($basicFaker->unique()->word());
 
         $this->em->persist($ingredient);
 
@@ -198,4 +199,5 @@ class DatabaseInitializer
 
         return $ingredient;
     }
+
 }
