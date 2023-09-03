@@ -3,7 +3,7 @@
 namespace App\Command;
 
 use App\Entity\Category;
-use App\Entity\Dish;
+use App\Entity\Meal;
 use App\Entity\Ingredient;
 use App\Entity\Language;
 use App\Entity\Status;
@@ -39,7 +39,7 @@ class CleanDBCommand extends Command
         try {
             $output->writeln('Clearing database...');
 
-            $this->em->getRepository(Dish::class)->createQueryBuilder('d')->delete()->getQuery()->execute();
+            $this->em->getRepository(Meal::class)->createQueryBuilder('d')->delete()->getQuery()->execute();
             $this->em->getRepository(Category::class)->createQueryBuilder('c')->delete()->getQuery()->execute();
             $this->em->getRepository(Tag::class)->createQueryBuilder('c')->delete()->getQuery()->execute();
             $this->em->getRepository(Ingredient::class)->createQueryBuilder('c')->delete()->getQuery()->execute();
@@ -47,8 +47,8 @@ class CleanDBCommand extends Command
             $this->em->getRepository(Status::class)->createQueryBuilder('c')->delete()->getQuery()->execute();
             $this->em->getRepository(Translation::class)->createQueryBuilder('c')->delete()->getQuery()->execute();
 
-            $this->em->getConnection()->executeQuery('delete from dish_tag');
-            $this->em->getConnection()->executeQuery('delete from dish_ingredient');
+            $this->em->getConnection()->executeQuery('delete from meal_tag');
+            $this->em->getConnection()->executeQuery('delete from meal_ingredient');
 
             $output->writeln('Database cleared.');
         } catch (Exception $e) {

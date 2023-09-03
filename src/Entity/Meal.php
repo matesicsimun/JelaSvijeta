@@ -2,15 +2,15 @@
 
 namespace App\Entity;
 
-use App\Repository\DishRepository;
+use App\Repository\MealRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Ignore;
 
-#[ORM\Entity(repositoryClass: DishRepository::class)]
-class Dish
+#[ORM\Entity(repositoryClass: MealRepository::class)]
+class Meal
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -30,7 +30,7 @@ class Dish
     #[ORM\ManyToOne]
     private ?Category $category = null;
 
-    #[ORM\ManyToMany(targetEntity: Tag::class, inversedBy: 'dishes')]
+    #[ORM\ManyToMany(targetEntity: Tag::class, inversedBy: 'meals')]
     private Collection $tags;
 
     #[ORM\ManyToMany(targetEntity: Ingredient::class)]

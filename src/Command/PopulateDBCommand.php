@@ -3,7 +3,7 @@
 namespace App\Command;
 
 use App\Entity\Category;
-use App\Entity\Dish;
+use App\Entity\Meal;
 use App\Entity\Ingredient;
 use App\Entity\Language;
 use App\Entity\Status;
@@ -26,10 +26,10 @@ use Symfony\Component\Console\Output\OutputInterface;
 class PopulateDBCommand extends Command
 {
     private EntityManagerInterface $em;
-    private const MIN_TAGS_PER_DISH = 1;
-    private const MAX_TAGS_PER_DISH = 4;
+    private const MIN_TAGS_PER_MEAL = 1;
+    private const MAX_TAGS_PER_MEAL = 4;
     private const LANGUAGES = ['hr_HR', 'en_EN', 'cs_CZ', 'de_DE', 'fr_FR'];
-    private const NUM_OF_DISHES = 20;
+    private const NUM_OF_MEALS = 20;
     private const NUMBER_OF_CATEGORIES = 5;
     private const NUMBER_OF_TAGS = 7;
     private const NUMBER_OF_INGREDIENTS = 10;
@@ -68,7 +68,7 @@ class PopulateDBCommand extends Command
 
     private function isPopulated(): bool
     {
-        return $this->em->getRepository(Dish::class)->count([]) != 0;
+        return $this->em->getRepository(Meal::class)->count([]) != 0;
     }
 
     private function fillDatabase(): void
@@ -92,7 +92,7 @@ class PopulateDBCommand extends Command
             $this->tags[] = $this->createAndSaveTag($codeFaker, $languageFakers);
         }
 
-        $this->createAndSaveDishes($codeFaker, $statuses, $languageFakers);
+        $this->createAndSaveMeals($codeFaker, $statuses, $languageFakers);
 
         $this->em->flush();
     }
@@ -138,36 +138,36 @@ class PopulateDBCommand extends Command
         return $languageFakers;
     }
 
-    private function createAndSaveDishes(Generator $basicFaker, array $statuses, array $languageFakers): void
+    private function createAndSaveMeals(Generator $basicFaker, array $statuses, array $languageFakers): void
     {
-        for ($i = 0; $i < self::NUM_OF_DISHES; $i++) {
-            $dish = new Dish();
+        for ($i = 0; $i < self::NUM_OF_MEALS; $i++) {
+            $meal = new Meal();
 
-            $dish->setTitleCode($basicFaker->unique()->word());
-            $dish->setDescriptionCode($basicFaker->unique()->word());
-            $dish->setStatus($statuses[mt_rand(0, sizeof($statuses) - 1)]);
-            $dish->setDateModified($basicFaker->dateTime());
+            $meal->setTitleCode($basicFaker->unique()->word());
+            $meal->setDescriptionCode($basicFaker->unique()->word());
+            $meal->setStatus($statuses[mt_rand(0, sizeof($statuses) - 1)]);
+            $meal->setDateModified($basicFaker->dateTime());
 
             foreach (self::LANGUAGES as $lang) {
-                $this->createAndSaveTranslation($dish->getTitleCode(), $lang, $languageFakers[$lang]);
-                $this->createAndSaveTranslation($dish->getDescriptionCode(), $lang, $languageFakers[$lang]);
+                $this->createAndSaveTranslation($meal->getTitleCode(), $lang, $languageFakers[$lang]);
+                $this->createAndSaveTranslation($meal->getDescriptionCode(), $lang, $languageFakers[$lang]);
             }
 
             if (mt_rand(0, 1)) {
-                $dish->setCategory($this->categories[mt_rand(0, self::NUMBER_OF_CATEGORIES - 1)]);
+                $meal->setCategory($this->categories[mt_rand(0, self::NUMBER_OF_CATEGORIES - 1)]);
             }
 
-            $numOfTags = mt_rand(self::MIN_TAGS_PER_DISH, self::MAX_TAGS_PER_DISH);
+            $numOfTags = mt_rand(self::MIN_TAGS_PER_MEAL, self::MAX_TAGS_PER_MEAL);
             for ($j = 0; $j < $numOfTags; $j++) {
-                $dish->addTag($this->tags[mt_rand(0, self::NUMBER_OF_TAGS - 1)]);
+                $meal->addTag($this->tags[mt_rand(0, self::NUMBER_OF_TAGS - 1)]);
             }
 
             $numOfIngredients = mt_rand(1, 3);
             for ($k = 0; $k < $numOfIngredients; $k++) {
-                $dish->addIngredient($this->ingredients[mt_rand(0, self::NUMBER_OF_INGREDIENTS - 1)]);
+                $meal->addIngredient($this->ingredients[mt_rand(0, self::NUMBER_OF_INGREDIENTS - 1)]);
             }
 
-            $this->em->persist($dish);
+            $this->em->persist($meal);
         }
     }
 

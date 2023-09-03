@@ -3,7 +3,7 @@
 namespace App\Service;
 
 use App\Converter\CodeNameConverter;
-use App\Entity\Dish;
+use App\Entity\Meal;
 use App\Entity\Status;
 use App\Entity\Translation;
 use App\Repository\TranslationRepository;
@@ -17,7 +17,7 @@ use Symfony\Component\Serializer\Normalizer\AbstractNormalizer;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
 
-class DishService
+class MealService
 {
     private EntityManagerInterface $em;
     private const STATUS_CREATED = 'created';
@@ -29,32 +29,32 @@ class DishService
         $this->em = $em;
     }
 
-    public function getDishes(Request $request): array
+    public function getMeals(Request $request): array
     {
         $params = $this->getQueryParams($request);
         $query = $this->createQuery($params);
 
-        $totalDishesMatchingCriteria = sizeof($query->getResult());
+        $totalMealsMatchingCriteria = sizeof($query->getResult());
 
         $currentPageNumber = $params['page'] ?: 1;
         $itemsPerPage = $request->query->get('per_page') ?: self::DEFAULT_PAGE_ITEMS;
 
-        $dishes = $this->createPaginator($query, $params, $itemsPerPage)
+        $meals = $this->createPaginator($query, $params, $itemsPerPage)
                         ->getQuery()
                         ->getResult();
 
-        $totalPages = ceil($totalDishesMatchingCriteria / $itemsPerPage);
+        $totalPages = ceil($totalMealsMatchingCriteria / $itemsPerPage);
 
         $links = $this->createPaginationLinks($request, $currentPageNumber, $totalPages);
-        $data = $this->createDishData($dishes, $params['lang'], $params['with']);
-        $meta = $this->createMetaDataEntry($currentPageNumber, $itemsPerPage, $totalDishesMatchingCriteria);
+        $data = $this->createMealData($meals, $params['lang'], $params['with']);
+        $meta = $this->createMetaDataEntry($currentPageNumber, $itemsPerPage, $totalMealsMatchingCriteria);
 
         return ['meta' => $meta, 'data' => $data, 'links' => $links];
     }
 
     private function createQuery(array $params): Query
     {
-        $qb = $this->em->getRepository(Dish::class)->createQueryBuilder('o');
+        $qb = $this->em->getRepository(Meal::class)->createQueryBuilder('o');
         $qbParams = [];
 
         if ($params['diffTime'] != null) {
@@ -162,7 +162,7 @@ class DishService
         ];
     }
 
-    private function createDishData(array $dishes, string $lang, array $with = []): array
+    private function createMealData(array $meals, string $lang, array $with = []): array
     {
         $encoders = [new JsonEncoder()];
         $codeNameConverter = new CodeNameConverter();
@@ -172,32 +172,32 @@ class DishService
         $attributes = ['tags', 'ingredients', 'category'];
         $ignoredAttributes = array_merge(['dateModified'], array_diff($attributes, $with));
 
-        $foundDishesJson = $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => $ignoredAttributes]);
+        $foundMealsJson = $serializer->serialize($meals, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => $ignoredAttributes]);
 
-        return $this->prepareData($foundDishesJson, $lang, $with);
+        return $this->prepareData($foundMealsJson, $lang, $with);
     }
 
-    private function prepareData(string $foundDishesJson, string $lang, array $with): array {
-        $jsonDecoded = json_decode($foundDishesJson, true);
+    private function prepareData(string $foundMealsJson, string $lang, array $with): array {
+        $jsonDecoded = json_decode($foundMealsJson, true);
         $translationRepo = $this->em->getRepository(Translation::class);
 
-        foreach($jsonDecoded as &$dishEntry) {
-            $this->translate($translationRepo, $lang, $dishEntry['title']);
-            $this->translate($translationRepo, $lang, $dishEntry['description']);
-            $dishEntry['status'] = $dishEntry['status']['title'];
+        foreach($jsonDecoded as &$mealEntry) {
+            $this->translate($translationRepo, $lang, $mealEntry['title']);
+            $this->translate($translationRepo, $lang, $mealEntry['description']);
+            $mealEntry['status'] = $mealEntry['status']['title'];
 
-            if (in_array('category', $with) && key_exists('category', $dishEntry) && $dishEntry['category'] != null) {
-                $this->translate($translationRepo, $lang, $dishEntry['category']['title']);
+            if (in_array('category', $with) && key_exists('category', $mealEntry) && $mealEntry['category'] != null) {
+                $this->translate($translationRepo, $lang, $mealEntry['category']['title']);
             }
 
             if (in_array('tags', $with)) {
-                foreach($dishEntry['tags'] as &$dishEntryTags) {
-                    $this->translate($translationRepo, $lang, $dishEntryTags['title']);
+                foreach($mealEntry['tags'] as &$mealEntryTags) {
+                    $this->translate($translationRepo, $lang, $mealEntryTags['title']);
                 }
             }
 
             if (in_array('ingredients', $with)) {
-                foreach($dishEntry['ingredients'] as &$ingredient) {
+                foreach($mealEntry['ingredients'] as &$ingredient) {
                     $this->translate($translationRepo, $lang, $ingredient['title']);
                 }
             }
