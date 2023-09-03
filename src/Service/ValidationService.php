@@ -35,43 +35,43 @@ class ValidationService
         }
 
         $perPage = $query->get('per_page');
-        if ($perPage && !ctype_digit($perPage)) {
-            $errors['per_page'] = 'per_page parameter must represent integer';
+        if ($perPage != null && (!ctype_digit($perPage) || $perPage <= 0)) {
+            $errors['per_page'] = 'per_page parameter must represent a positive integer';
         }
 
         $page = $query->get('page');
-        if ($page && !ctype_digit($page)) {
-            $errors['page'] = 'page parameter must represent integer';
+        if ($page != null && (!ctype_digit($page) || $page <= 0)) {
+            $errors['page'] = 'page parameter must represent a positive integer';
         }
 
         $category = $query->get('category');
-        if ($category && !ctype_digit($category) && $category != 'NULL' && $category != '!NULL') {
-            $errors['category'] = 'category identifier must represent integer';
+        if ($category != null && (!ctype_digit($category) || $category <= 0) && $category != 'NULL' && $category != '!NULL') {
+            $errors['category'] = 'category identifier must represent a positive integer';
         }
 
         $tags = $query->get('tags');
-        if ($tags) {
+        if ($tags != null) {
             $tagValid = true;
             $tagArr = explode(',', $tags);
             foreach ($tagArr as $tag) {
-                if (!ctype_digit($tag)) {
+                if (!ctype_digit($tag) || $tag <= 0) {
                     $tagValid = false;
                 }
             }
 
             if (!$tagValid) {
-                $errors['tags'] = 'tags parameter must be a comma-delimited list of integers';
+                $errors['tags'] = 'tags parameter must be a comma-delimited list of positive integers';
             }
         }
 
         $with = $query->get('with');
-        if ($with && array_diff(explode(',', $with), self::WITH_PARAMS) != null) {
+        if ($with != null && array_diff(explode(',', $with), self::WITH_PARAMS) != null) {
             $errors['with'] = 'with parameter cannot include values other than [ingredients, tags, category]';
         }
 
         $diffTime = $query->get('diff_time');
-        if ($diffTime && !is_numeric($diffTime)) {
-            $errors['diff_time'] = 'diff_time parameter must be numeric';
+        if ($diffTime != null && (!is_numeric($diffTime) || $diffTime <= 0)) {
+            $errors['diff_time'] = 'diff_time parameter must be numeric and positive';
         }
 
         return $errors;

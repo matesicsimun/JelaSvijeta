@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Converter\CodeNameConverter;
+use App\Entity\Dish;
 use App\Entity\Status;
 use App\Entity\Translation;
 use Doctrine\ORM\EntityManagerInterface;
@@ -27,9 +28,9 @@ class DishService
         $this->em = $em;
     }
 
-    public function findDishes(Request $request): array
+    public function getDishes(Request $request): array
     {
-        $params = $this->getParams($request);
+        $params = $this->getQueryParams($request);
         $query = $this->createQuery($params);
 
         $totalDishesMatchingCriteria = sizeof($query->getResult());
@@ -52,26 +53,24 @@ class DishService
 
     private function createQuery(array $params): Query
     {
-        $qb = $this->em->getRepository('App\Entity\Dish')->createQueryBuilder('o');
-        $dbQueryParams = [];
+        $qb = $this->em->getRepository(Dish::class)->createQueryBuilder('o');
+        $qbParams = [];
 
         if ($params['diffTime'] != null) {
-            $this->addDiffTimeCriteria($qb, $params, $dbQueryParams);
+            $this->addDiffTimeCriteria($qb, $params, $qbParams);
         } else {
-            $qb->where('o.status = :statusId');
-            $defaultStatus = $this->em->getRepository(Status::class)->findOneBy(['name' => self::DEFAULT_STATUS]);
-            $dbQueryParams = ['statusId' => $defaultStatus->getId()];
+            $this->addStatusActiveCriteria($qb, $qbParams);
         }
 
         if ($params['tags'] != null) {
-            $this->addTagsCriteria($qb, $params, $dbQueryParams);
+            $this->addTagsCriteria($qb, $params, $qbParams);
         }
 
         if ($params['category'] != null) {
-            $this->addCategoryCriteria($qb, $params, $dbQueryParams);
+            $this->addCategoryCriteria($qb, $params, $qbParams);
         }
 
-        $qb->setParameters($dbQueryParams);
+        $qb->setParameters($qbParams);
         return $qb->getQuery();
     }
 
@@ -83,14 +82,21 @@ class DishService
         $dbQueryParams['diffTime'] = $date;
     }
 
-    private function addTagsCriteria(QueryBuilder $qb, array $params, array &$dbQueryParams): void
+    private function addStatusActiveCriteria(QueryBuilder $qb, array &$qbParams): void
+    {
+        $qb->where('o.status = :statusId');
+        $defaultStatus = $this->em->getRepository(Status::class)->findOneBy(['name' => self::DEFAULT_STATUS]);
+        $qbParams = ['statusId' => $defaultStatus->getId()];
+    }
+
+    private function addTagsCriteria(QueryBuilder $qb, array $params, array &$qbParams): void
     {
         $tagIds = explode(',', $params['tags']);
         $tagParamNum = 1;
         foreach($tagIds as $tagId) {
             $tagAlias = 't'.$tagParamNum;
             $qb->innerJoin('o.tags', $tagAlias, 'WITH', $tagAlias.'.id = :tagId'.$tagParamNum);
-            $dbQueryParams['tagId'.$tagParamNum] = $tagId;
+            $qbParams['tagId'.$tagParamNum] = $tagId;
             $tagParamNum++;
         }
     }
@@ -141,7 +147,7 @@ class DishService
         ];
     }
 
-    private function getParams(Request $request): array
+    private function getQueryParams(Request $request): array
     {
         $query = $request->query;
         return [

@@ -18,7 +18,7 @@ class DishController extends AbstractController
         if ($errors) {
             return new Response(json_encode(['status' => 400, 'errors' => $errors]));
         } else {
-            return new Response(json_encode($dishService->findDishes($request)));
+            return new Response(json_encode($dishService->getDishes($request)));
         }
     }
 
