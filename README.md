@@ -8,7 +8,7 @@ To clear the database run `php bin/console app:clear-db`.
 
 
 ### Using the API
-The app exposes one API: `/dishes` which allows for multiple parameters.
+The app exposes one endpoint: `/dishes` which allows for multiple parameters.
 The available params are:
 <ul>
     <li>lang (required) - Specify language ('hr', 'fr', 'de'...)</li>
