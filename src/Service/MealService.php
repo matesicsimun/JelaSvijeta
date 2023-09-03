@@ -23,6 +23,7 @@ class MealService
     private const STATUS_CREATED = 'created';
     private const DEFAULT_LANG = 'en';
     private const DEFAULT_PAGE_ITEMS = 10;
+    private const ITEMS_PER_PAGE_LIMIT = 20;
 
     public function __construct(EntityManagerInterface $em)
     {
@@ -37,13 +38,18 @@ class MealService
         $totalMealsMatchingCriteria = sizeof($query->getResult());
 
         $currentPageNumber = $params['page'] ?: 1;
-        $itemsPerPage = $request->query->get('per_page') ?: self::DEFAULT_PAGE_ITEMS;
+        $itemsPerPage = $params['perPage'];
 
-        $meals = $this->createPaginator($query, $params, $itemsPerPage)
-                        ->getQuery()
-                        ->getResult();
+        if ($itemsPerPage && $itemsPerPage >= self::ITEMS_PER_PAGE_LIMIT) {
+            $itemsPerPage = self::DEFAULT_PAGE_ITEMS;
+        }
 
         $totalPages = ceil($totalMealsMatchingCriteria / $itemsPerPage);
+        $currentPageNumber = $currentPageNumber > $totalPages ? 1 : $currentPageNumber;
+
+        $meals = $this->createPaginator($query, $params, $itemsPerPage, $currentPageNumber)
+            ->getQuery()
+            ->getResult();
 
         $links = $this->createPaginationLinks($request, $currentPageNumber, $totalPages);
         $data = $this->createMealData($meals, $params['lang'], $params['with']);
@@ -115,14 +121,11 @@ class MealService
         }
     }
 
-    private function createPaginator(Query $query, array $params, int $itemsPerPage): Paginator
+    private function createPaginator(Query $query, array $params, int $itemsPerPage, $currentPage): Paginator
     {
         $paginator = new Paginator($query, $fetchJoinCollection = true);
         $paginator->getQuery()->setMaxResults($itemsPerPage);
-        if ($params['page'] != null) {
-            $currentPageNumber = $params['page'];
-            $paginator->getQuery()->setFirstResult($itemsPerPage * ($currentPageNumber - 1));
-        }
+        $paginator->getQuery()->setFirstResult($itemsPerPage * ($currentPage - 1));
 
         return $paginator;
     }
