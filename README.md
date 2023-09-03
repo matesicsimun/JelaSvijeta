@@ -1,9 +1,9 @@
 ## Jela Svijeta
 
 ### First time setup
-To install the needed libraries run `composer install`.
-To create the SQLITE database run `doctrine:migrations:migrate`.
-To fill the database with fake data run `php bin/console app:fill-db`.
+To install the needed libraries run `composer install`.<br>
+To create the SQLITE database run `doctrine:migrations:migrate`.<br>
+To fill the database with fake data run `php bin/console app:fill-db`.<br>
 To clear the database run `php bin/console app:clear-db`.
 
 
