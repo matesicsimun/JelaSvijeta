@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Service;
+namespace App\Command;
 
 use App\Entity\Category;
 use App\Entity\Dish;
@@ -12,8 +12,18 @@ use App\Entity\Translation;
 use Doctrine\ORM\EntityManagerInterface;
 use Faker\Factory;
 use Faker\Generator;
+use Symfony\Component\Console\Attribute\AsCommand;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
-class DatabaseInitializer
+#[AsCommand(
+    name: 'app:populate-database',
+    description: 'Populates database with fake data',
+    aliases: ['app:fill-database', 'app:fill-db', 'app:populate-db'],
+    hidden: false
+)]
+class PopulateDBCommand extends Command
 {
     private EntityManagerInterface $em;
     private const MIN_TAGS_PER_DISH = 1;
@@ -26,15 +36,41 @@ class DatabaseInitializer
     private array $ingredients = [];
     private array $tags = [];
 
-    public function __construct(EntityManagerInterface $em)
+    public function __construct(EntityManagerInterface $em, string $name = null)
     {
         $this->em = $em;
+
+        parent::__construct($name);
     }
 
-    public function fillDatabase(): void
+    protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        // TODO add check if DB is already filled
+        if ($this->isPopulated()){
+            $output->writeln('Database is already populated! First run clean command in order to populate again.');
+            return Command::INVALID;
+        }
 
+        try {
+            $output->writeln('Populating db...');
+
+            $this->fillDatabase();
+
+            $output->writeln('Database populated successfully.');
+        } catch (\Exception $e) {
+            $output->writeln('An error occurred: ' . $e->getMessage());
+            return Command::FAILURE;
+        }
+
+        return Command::SUCCESS;
+    }
+
+    private function isPopulated(): bool
+    {
+        return $this->em->getRepository(Dish::class)->count([]) != 0;
+    }
+
+    private function fillDatabase(): void
+    {
         $statuses = $this->createAndSaveStatuses();
         $this->createAndSaveLanguages();
         $languageFakers = $this->createAndSaveLanguageFakers();
@@ -42,7 +78,6 @@ class DatabaseInitializer
         $codeFaker = Factory::create();
         $codeFaker->seed(100);
 
-        // TODO - perhaps don't make categories, ingredients and tags a property of the service (anti-pattern ?)
         for($i = 0; $i < self::NUMBER_OF_CATEGORIES; $i++) {
             $this->categories[] = $this->createAndSaveCategory($codeFaker, $languageFakers);
         }
@@ -58,18 +93,6 @@ class DatabaseInitializer
         $this->createAndSaveDishes($codeFaker, $statuses, $languageFakers);
 
         $this->em->flush();
-    }
-
-    public function cleanupDatabase(): void
-    {
-        //TODO - delete properly (with cascading opt)
-        $this->em->createQuery('DELETE FROM App\Entity\Status')->execute();
-        $this->em->createQuery('DELETE FROM App\Entity\Language')->execute();
-        $this->em->createQuery('DELETE FROM App\Entity\Dish')->execute();
-        $this->em->createQuery('DELETE FROM App\Entity\Category')->execute();
-        $this->em->createQuery('DELETE FROM App\Entity\Ingredient')->execute();
-        $this->em->createQuery('DELETE FROM App\Entity\Tag')->execute();
-        $this->em->createQuery('DELETE FROM App\Entity\Translation')->execute();
     }
 
     private function createAndSaveStatuses(): array
@@ -201,5 +224,4 @@ class DatabaseInitializer
 
         return $ingredient;
     }
-
 }
