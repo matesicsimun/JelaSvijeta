@@ -29,9 +29,11 @@ class PopulateDBCommand extends Command
     private const MIN_TAGS_PER_DISH = 1;
     private const MAX_TAGS_PER_DISH = 4;
     private const LANGUAGES = ['hr_HR', 'en_EN', 'cs_CZ', 'de_DE', 'fr_FR'];
+    private const NUM_OF_DISHES = 20;
     private const NUMBER_OF_CATEGORIES = 5;
     private const NUMBER_OF_TAGS = 7;
     private const NUMBER_OF_INGREDIENTS = 10;
+    private const SHORT_CODE_LENGTH = 2;
     private array $categories = [];
     private array $ingredients = [];
     private array $tags = [];
@@ -73,7 +75,7 @@ class PopulateDBCommand extends Command
     {
         $statuses = $this->createAndSaveStatuses();
         $this->createAndSaveLanguages();
-        $languageFakers = $this->createAndSaveLanguageFakers();
+        $languageFakers = $this->getLanguageFakers();
 
         $codeFaker = Factory::create();
         $codeFaker->seed(100);
@@ -119,11 +121,12 @@ class PopulateDBCommand extends Command
             $language = new Language();
             $language->setCode($lang);
             $language->setShortCode(substr($lang, 0, 2));
+
             $this->em->persist($language);
         }
     }
 
-    private function createAndSaveLanguageFakers(): array
+    private function getLanguageFakers(): array
     {
         $languageFakers = [];
         foreach (self::LANGUAGES as $lang) {
@@ -137,13 +140,12 @@ class PopulateDBCommand extends Command
 
     private function createAndSaveDishes(Generator $basicFaker, array $statuses, array $languageFakers): void
     {
-        $numOfDishes = 20;
-        for ($i = 0; $i < $numOfDishes; $i++) {
+        for ($i = 0; $i < self::NUM_OF_DISHES; $i++) {
             $dish = new Dish();
 
             $dish->setTitleCode($basicFaker->unique()->word());
             $dish->setDescriptionCode($basicFaker->unique()->word());
-            $dish->setStatus($statuses[mt_rand(0, 2)]);
+            $dish->setStatus($statuses[mt_rand(0, sizeof($statuses) - 1)]);
             $dish->setDateModified($basicFaker->dateTime());
 
             foreach (self::LANGUAGES as $lang) {
@@ -174,7 +176,7 @@ class PopulateDBCommand extends Command
         $translation = new Translation();
         $translation->setCode($code);
         $translation->setLanguageCode($lang);
-        $translation->setShortCode(substr($lang, 0, 2));
+        $translation->setShortCode(substr($lang, 0, self::SHORT_CODE_LENGTH));
         $translation->setTranslation($langFaker->name());
 
         $this->em->persist($translation);
@@ -224,4 +226,5 @@ class PopulateDBCommand extends Command
 
         return $ingredient;
     }
+
 }

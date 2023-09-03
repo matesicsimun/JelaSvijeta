@@ -6,6 +6,7 @@ use App\Converter\CodeNameConverter;
 use App\Entity\Dish;
 use App\Entity\Status;
 use App\Entity\Translation;
+use App\Repository\TranslationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
@@ -42,10 +43,10 @@ class DishService
                         ->getQuery()
                         ->getResult();
 
-        $totalPages = intdiv($totalDishesMatchingCriteria, $itemsPerPage) + 1;
+        $totalPages = ceil(intdiv($totalDishesMatchingCriteria, $itemsPerPage));
 
         $links = $this->createPaginationLinks($request, $currentPageNumber, $totalPages);
-        $data = $this->createData($dishes, $params['lang'], $params['with']);
+        $data = $this->createDishData($dishes, $params['lang'], $params['with']);
         $meta = $this->createMetaDataEntry($currentPageNumber, $itemsPerPage, $totalDishesMatchingCriteria);
 
         return ['meta' => $meta, 'data' => $data, 'links' => $links];
@@ -143,7 +144,7 @@ class DishService
             'currentPage' => $page,
             'totalItems' => $total,
             'itemsPerPage' => $itemsPerPage,
-            'totalPages' => intdiv($total, $itemsPerPage) + 1
+            'totalPages' => ceil(intdiv($total, $itemsPerPage))
         ];
     }
 
@@ -161,7 +162,7 @@ class DishService
         ];
     }
 
-    private function createData(array $dishes, string $lang, array $with = []): array
+    private function createDishData(array $dishes, string $lang, array $with = []): array
     {
         $encoders = [new JsonEncoder()];
         $codeNameConverter = new CodeNameConverter();
@@ -171,37 +172,43 @@ class DishService
         $attributes = ['tags', 'ingredients', 'category'];
         $ignoredAttributes = array_merge(['dateModified'], array_diff($attributes, $with));
 
-        $json = $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => $ignoredAttributes]);
+        $foundDishesJson = $serializer->serialize($dishes, 'json', [AbstractNormalizer::IGNORED_ATTRIBUTES => $ignoredAttributes]);
 
-        return $this->prepareData($json, $lang, $with);
+        return $this->prepareData($foundDishesJson, $lang, $with);
     }
 
-    private function prepareData(string $json, string $lang, array $with): array {
-        $jsonDecoded = json_decode($json, true);
+    private function prepareData(string $foundDishesJson, string $lang, array $with): array {
+        $jsonDecoded = json_decode($foundDishesJson, true);
         $translationRepo = $this->em->getRepository(Translation::class);
+
         foreach($jsonDecoded as &$dishEntry) {
-            $dishEntry['title'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dishEntry['title']])->getTranslation();
-            $dishEntry['description'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dishEntry['description']])->getTranslation();
+            $this->translate($translationRepo, $lang, $dishEntry['title']);
+            $this->translate($translationRepo, $lang, $dishEntry['description']);
             $dishEntry['status'] = $dishEntry['status']['name'];
 
             if (in_array('category', $with) && key_exists('category', $dishEntry) && $dishEntry['category'] != null) {
-                $dishEntry['category']['name'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dishEntry['category']['name']])->getTranslation();
+                $this->translate($translationRepo, $lang, $dishEntry['category']['name']);
             }
 
             if (in_array('tags', $with)) {
                 foreach($dishEntry['tags'] as &$dishEntryTags) {
-                    $dishEntryTags['name'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $dishEntryTags['name']])->getTranslation();
+                    $this->translate($translationRepo, $lang, $dishEntryTags['name']);
                 }
             }
 
             if (in_array('ingredients', $with)) {
                 foreach($dishEntry['ingredients'] as &$ingredient) {
-                    $ingredient['name'] = $translationRepo->findOneBy(['shortCode' => $lang, 'code' => $ingredient['name']])->getTranslation();
+                    $this->translate($translationRepo, $lang, $ingredient['name']);
                 }
             }
         }
 
         return $jsonDecoded;
+    }
+
+    private function translate(TranslationRepository $repo, string $lang, string &$code): void
+    {
+        $code = $repo->findOneBy(array_merge(['shortCode' => $lang], ['code' => $code]))->getTranslation();
     }
 
 }
