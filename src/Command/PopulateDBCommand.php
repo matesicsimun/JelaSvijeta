@@ -97,8 +97,8 @@ class PopulateDBCommand extends Command
 
     private function createAndSaveStatuses(): array
     {
-        $statusActive = new Status();
-        $statusActive->setName('active');
+        $statusCreated = new Status();
+        $statusCreated->setName('created');
 
         $statusModified = new Status();
         $statusModified->setName('modified');
@@ -107,10 +107,10 @@ class PopulateDBCommand extends Command
         $statusDeleted->setName('deleted');
 
         $this->em->persist($statusModified);
-        $this->em->persist($statusActive);
+        $this->em->persist($statusCreated);
         $this->em->persist($statusDeleted);
 
-        return [$statusActive, $statusDeleted, $statusModified];
+        return [$statusCreated, $statusDeleted, $statusModified];
     }
 
     private function createAndSaveLanguages(): void
