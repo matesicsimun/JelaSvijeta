@@ -12,7 +12,8 @@ class CodeNameConverter implements NameConverterInterface
      */
     public function normalize(string $propertyName): string
     {
-        return str_replace('Code', '', $propertyName);
+        $withoutCode = str_replace('Code', '', $propertyName);
+        return str_replace('name', 'title', $withoutCode);
     }
 
     /**

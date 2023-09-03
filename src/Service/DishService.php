@@ -43,7 +43,7 @@ class DishService
                         ->getQuery()
                         ->getResult();
 
-        $totalPages = ceil(intdiv($totalDishesMatchingCriteria, $itemsPerPage));
+        $totalPages = ceil($totalDishesMatchingCriteria / $itemsPerPage);
 
         $links = $this->createPaginationLinks($request, $currentPageNumber, $totalPages);
         $data = $this->createDishData($dishes, $params['lang'], $params['with']);
@@ -144,7 +144,7 @@ class DishService
             'currentPage' => $page,
             'totalItems' => $total,
             'itemsPerPage' => $itemsPerPage,
-            'totalPages' => ceil(intdiv($total, $itemsPerPage))
+            'totalPages' => ceil($total / $itemsPerPage)
         ];
     }
 
@@ -184,21 +184,21 @@ class DishService
         foreach($jsonDecoded as &$dishEntry) {
             $this->translate($translationRepo, $lang, $dishEntry['title']);
             $this->translate($translationRepo, $lang, $dishEntry['description']);
-            $dishEntry['status'] = $dishEntry['status']['name'];
+            $dishEntry['status'] = $dishEntry['status']['title'];
 
             if (in_array('category', $with) && key_exists('category', $dishEntry) && $dishEntry['category'] != null) {
-                $this->translate($translationRepo, $lang, $dishEntry['category']['name']);
+                $this->translate($translationRepo, $lang, $dishEntry['category']['title']);
             }
 
             if (in_array('tags', $with)) {
                 foreach($dishEntry['tags'] as &$dishEntryTags) {
-                    $this->translate($translationRepo, $lang, $dishEntryTags['name']);
+                    $this->translate($translationRepo, $lang, $dishEntryTags['title']);
                 }
             }
 
             if (in_array('ingredients', $with)) {
                 foreach($dishEntry['ingredients'] as &$ingredient) {
-                    $this->translate($translationRepo, $lang, $ingredient['name']);
+                    $this->translate($translationRepo, $lang, $ingredient['title']);
                 }
             }
         }
