@@ -185,7 +185,7 @@ class PopulateDBCommand extends Command
     private function createAndSaveCategory(Generator $basicFaker, array $languageFakers): Category
     {
         $category = new Category();
-        $category->setSlug($basicFaker->slug());
+        $category->setSlug($basicFaker->unique()->slug());
         $category->setNameCode($basicFaker->unique()->city());
 
         $this->em->persist($category);
@@ -200,7 +200,7 @@ class PopulateDBCommand extends Command
     private function createAndSaveTag(Generator $basicFaker, array $languageFakers): Tag
     {
         $tag = new Tag();
-        $tag->setSlug($basicFaker->slug());
+        $tag->setSlug($basicFaker->unique()->slug());
         $tag->setNameCode($basicFaker->unique()->word());
 
         $this->em->persist($tag);
@@ -215,7 +215,7 @@ class PopulateDBCommand extends Command
     private function createAndSaveIngredient(Generator $basicFaker, array $languageFakers): Ingredient
     {
         $ingredient = new Ingredient();
-        $ingredient->setSlug($basicFaker->slug());
+        $ingredient->setSlug($basicFaker->unique()->slug());
         $ingredient->setNameCode($basicFaker->unique()->word());
 
         $this->em->persist($ingredient);
