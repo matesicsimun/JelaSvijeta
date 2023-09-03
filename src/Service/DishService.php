@@ -19,7 +19,7 @@ use Symfony\Component\Serializer\Serializer;
 class DishService
 {
     private EntityManagerInterface $em;
-    private const DEFAULT_STATUS = 'active';
+    private const STATUS_DELETED = 'deleted';
     private const DEFAULT_LANG = 'en';
     private const DEFAULT_PAGE_ITEMS = 10;
 
@@ -59,7 +59,7 @@ class DishService
         if ($params['diffTime'] != null) {
             $this->addDiffTimeCriteria($qb, $params, $qbParams);
         } else {
-            $this->addStatusActiveCriteria($qb, $qbParams);
+            $this->addStatusNotDeletedCriteria($qb, $qbParams);
         }
 
         if ($params['tags'] != null) {
@@ -82,11 +82,11 @@ class DishService
         $dbQueryParams['diffTime'] = $date;
     }
 
-    private function addStatusActiveCriteria(QueryBuilder $qb, array &$qbParams): void
+    private function addStatusNotDeletedCriteria(QueryBuilder $qb, array &$qbParams): void
     {
-        $qb->where('o.status = :statusId');
-        $defaultStatus = $this->em->getRepository(Status::class)->findOneBy(['name' => self::DEFAULT_STATUS]);
-        $qbParams = ['statusId' => $defaultStatus->getId()];
+        $statusDeleted = $this->em->getRepository(Status::class)->findOneBy(['name' => self::STATUS_DELETED]);
+        $qb->where($qb->expr()->neq('o.status', ':statusId'));
+        $qbParams = ['statusId' => $statusDeleted->getId()];
     }
 
     private function addTagsCriteria(QueryBuilder $qb, array $params, array &$qbParams): void
