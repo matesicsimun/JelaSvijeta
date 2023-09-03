@@ -1,13 +1,13 @@
-##Jela Svijeta
+## Jela Svijeta
 
-###First time setup
+### First time setup
 To install the needed libraries run `composer install`.
 To create the SQLITE database run `doctrine:migrations:migrate`.
 To fill the database with fake data run `php bin/console app:fill-db`.
 To clear the database run `php bin/console app:clear-db`.
 
 
-###Using the API
+### Using the API
 The app exposes one API: `/dishes` which allows for multiple parameters.
 The available params are:
 <ul>
