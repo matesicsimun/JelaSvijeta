@@ -3,7 +3,6 @@
 namespace App\Service;
 
 use App\Converter\CodeNameConverter;
-use App\Entity\Dish;
 use App\Entity\Status;
 use App\Entity\Translation;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,11 +22,12 @@ class DishService
     private const DEFAULT_LANG = 'en';
     private const DEFAULT_PAGE_ITEMS = 10;
 
-    public function __construct(EntityManagerInterface $em) {
+    public function __construct(EntityManagerInterface $em)
+    {
         $this->em = $em;
     }
 
-    public function findDishes(Request $request): string
+    public function findDishes(Request $request): array
     {
         $params = $this->getParams($request);
         $query = $this->createQuery($params);
@@ -47,9 +47,7 @@ class DishService
         $data = $this->createData($dishes, $params['lang'], $params['with']);
         $meta = $this->createMetaDataEntry($currentPageNumber, $itemsPerPage, $totalDishesMatchingCriteria);
 
-        $completeResult = ['meta' => $meta, 'data' => $data, 'links' => $links];
-
-        return json_encode($completeResult);
+        return ['meta' => $meta, 'data' => $data, 'links' => $links];
     }
 
     private function createQuery(array $params): Query

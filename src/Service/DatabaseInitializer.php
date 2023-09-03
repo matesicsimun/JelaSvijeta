@@ -95,6 +95,7 @@ class DatabaseInitializer
         foreach (self::LANGUAGES as $lang) {
             $language = new Language();
             $language->setCode($lang);
+            $language->setShortCode(substr($lang, 0, 2));
             $this->em->persist($language);
         }
     }

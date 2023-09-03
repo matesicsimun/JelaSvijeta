@@ -2,12 +2,20 @@
 
 namespace App\Service;
 
+use App\Entity\Language;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 
-class DishParamValidationService
+class ValidationService
 {
+    private EntityManagerInterface $em;
     private const LANG_LENGTH = 2;
     private const WITH_PARAMS = ['tags', 'category', 'ingredients'];
+
+    public function __construct(EntityManagerInterface $em)
+    {
+        $this->em = $em;
+    }
 
     public function validate(Request $request): array
     {
@@ -19,6 +27,11 @@ class DishParamValidationService
             $errors['lang'] = 'language (lang) parameter must be set!';
         } else if (!ctype_alpha($lang) || strlen($lang) != self::LANG_LENGTH) {
             $errors['lang'] = 'language (lang) parameter must be two characters long with no numeric characters';
+        } else {
+            $specifiedLanguage = $this->em->getRepository(Language::class)->findBy(['shortCode' => $lang]);
+            if ($specifiedLanguage == null) {
+                $errors['lang'] = 'language must be one of specified languages';
+            }
         }
 
         $perPage = $query->get('per_page');

@@ -16,6 +16,9 @@ class Language
     #[ORM\Column(length: 5)]
     private ?string $code = null;
 
+    #[ORM\Column(length: 2)]
+    private ?string $shortCode = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -29,6 +32,18 @@ class Language
     public function setCode(string $code): static
     {
         $this->code = $code;
+
+        return $this;
+    }
+
+    public function getShortCode(): ?string
+    {
+        return $this->shortCode;
+    }
+
+    public function setShortCode(string $shortCode): static
+    {
+        $this->shortCode = $shortCode;
 
         return $this;
     }
