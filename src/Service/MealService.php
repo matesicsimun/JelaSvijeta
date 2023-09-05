@@ -39,8 +39,7 @@ class MealService
 
         $currentPageNumber = $params['page'] ?: 1;
         $itemsPerPage = $params['perPage'];
-
-        if ($itemsPerPage && $itemsPerPage >= self::ITEMS_PER_PAGE_LIMIT) {
+        if (($itemsPerPage && $itemsPerPage >= self::ITEMS_PER_PAGE_LIMIT) || $itemsPerPage == null) {
             $itemsPerPage = self::DEFAULT_PAGE_ITEMS;
         }
 
