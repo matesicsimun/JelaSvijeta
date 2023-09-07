@@ -3,7 +3,7 @@
 namespace App\Controller;
 
 use App\Service\MealService;
-use App\Service\ValidationService;
+use App\Service\RequestValidator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,7 +13,7 @@ use Symfony\Component\Routing\Annotation\Route;
 class MealController extends AbstractController
 {
     #[Route('/meals')]
-    public function getMeals(Request $request, MealService $mealService, ValidationService $validationService): JsonResponse
+    public function getMeals(Request $request, MealService $mealService, RequestValidator $validationService): JsonResponse
     {
         $errors = $validationService->validate($request);
         if ($errors) {

@@ -19,15 +19,13 @@ use Symfony\Component\Serializer\Serializer;
 
 class MealService
 {
-    private EntityManagerInterface $em;
     private const STATUS_CREATED = 'created';
     private const DEFAULT_LANG = 'en';
     private const DEFAULT_PAGE_ITEMS = 10;
     private const ITEMS_PER_PAGE_LIMIT = 20;
 
-    public function __construct(EntityManagerInterface $em)
+    public function __construct(private EntityManagerInterface $em)
     {
-        $this->em = $em;
     }
 
     public function getMeals(Request $request): array
