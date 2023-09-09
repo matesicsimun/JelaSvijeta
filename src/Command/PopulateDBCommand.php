@@ -33,9 +33,6 @@ class PopulateDBCommand extends Command
     private const NUMBER_OF_INGREDIENTS = 10;
     private const SHORT_CODE_LENGTH = 2;
     private const AVAILABLE_STATUSES = ['created', 'modified', 'deleted'];
-    private array $categories = [];
-    private array $ingredients = [];
-    private array $tags = [];
 
     public function __construct(private EntityManagerInterface $em,
                                 private MealFactoryInterface $mealFactory,
@@ -85,13 +82,13 @@ class PopulateDBCommand extends Command
 
         $this->createAndSaveStatuses();
         $this->createAndSaveLanguages();
-        $this->createAndSaveCategories($categorySlugs, $categoryNameCodes);
-        $this->createAndSaveIngredients($ingredientSlugs, $ingredientNameCodes);
-        $this->createAndSaveTags($tagSlugs, $tagNameCodes);
+        $ingredients = $this->createAndSaveIngredients($ingredientSlugs, $ingredientNameCodes);
+        $tags = $this->createAndSaveTags($tagSlugs, $tagNameCodes);
+        $categories = $this->createAndSaveCategories($categorySlugs, $categoryNameCodes);
 
         $this->em->flush();
 
-        $this->createAndSaveMeals($mealCodes, $dateTimes);
+        $this->createAndSaveMeals($mealCodes, $dateTimes, $categories, $tags, $ingredients);
 
         $this->createAndSaveTranslations($ingredientSlugs);
         $this->createAndSaveTranslations($ingredientNameCodes);
@@ -119,55 +116,62 @@ class PopulateDBCommand extends Command
         }
     }
 
-    private function createAndSaveCategories(array $slugs, array $nameCodes): void
+    private function createAndSaveCategories(array $slugs, array $nameCodes): array
     {
+        $categories = [];
         for($i = 0; $i < self::NUMBER_OF_CATEGORIES; $i++) {
             $category = $this->categoryFactory->create($slugs[$i], $nameCodes[$i]);
             $this->em->persist($category);
-            $this->categories[] = $category;
+            $categories[] = $category;
         }
+
+        return $categories;
     }
 
-    private function createAndSaveIngredients(array $slugs, array $nameCodes): void
+    private function createAndSaveIngredients(array $slugs, array $nameCodes): array
     {
+        $ingredients = [];
         for($i = 0; $i < self::NUMBER_OF_INGREDIENTS; $i++) {
             $ingredient = $this->ingredientFactory->create($slugs[$i], $nameCodes[$i]);
             $this->em->persist($ingredient);
-            $this->ingredients[] = $ingredient;
+            $ingredients[] = $ingredient;
         }
+
+        return $ingredients;
     }
 
-    private function createAndSaveTags(array $slugs, array $nameCodes): void
+    private function createAndSaveTags(array $slugs, array $nameCodes): array
     {
+        $tags = [];
         for($i = 0; $i < self::NUMBER_OF_TAGS; $i++) {
             $tag = $this->tagFactory->create($slugs[$i], $nameCodes[$i]);
             $this->em->persist($tag);
-            $this->tags[] = $tag;
+            $tags[] = $tag;
         }
+
+        return $tags;
     }
 
-    private function createAndSaveMeals(array $uniqueCodes, array $dateTimes): void
+    private function createAndSaveMeals(array $uniqueCodes, array $dateTimes, $categories, $tags, $ingredients): void
     {
         for ($i = 0; $i < self::NUM_OF_MEALS * 2; $i++) {
             $titleCode = $uniqueCodes[$i];
             $descCode = $uniqueCodes[$i];
-
             $statusName = self::AVAILABLE_STATUSES[mt_rand(0, sizeof(self::AVAILABLE_STATUSES) - 1)];
             $status = $this->em->getRepository(Status::class)->findOneBy(['name' => $statusName]);
-
             $dateModified = $dateTimes[$i % 10];
-            $category = mt_rand(0, 1) == 1 ?  $this->categories[mt_rand(0, self::NUMBER_OF_CATEGORIES - 1)] : null;
+            $category = mt_rand(0, 1) == 1 ?  $categories[mt_rand(0, self::NUMBER_OF_CATEGORIES - 1)] : null;
 
             $meal = $this->mealFactory->create($titleCode, $descCode, $status, $dateModified, $category);
 
             $numOfTags = mt_rand(self::MIN_TAGS_PER_MEAL, self::MAX_TAGS_PER_MEAL);
             for ($j = 0; $j < $numOfTags; $j++) {
-                $meal->addTag($this->tags[mt_rand(0, self::NUMBER_OF_TAGS - 1)]);
+                $meal->addTag($tags[mt_rand(0, self::NUMBER_OF_TAGS - 1)]);
             }
 
             $numOfIngredients = mt_rand(1, 3);
             for ($k = 0; $k < $numOfIngredients; $k++) {
-                $meal->addIngredient($this->ingredients[mt_rand(0, self::NUMBER_OF_INGREDIENTS - 1)]);
+                $meal->addIngredient($ingredients[mt_rand(0, self::NUMBER_OF_INGREDIENTS - 1)]);
             }
 
             $this->em->persist($meal);
