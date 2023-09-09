@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Interface\model\MealInterface;
 use App\Repository\MealRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -10,7 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Ignore;
 
 #[ORM\Entity(repositoryClass: MealRepository::class)]
-class Meal
+class Meal implements MealInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -130,11 +131,6 @@ class Meal
         return $this;
     }
 
-    public function setTags(ArrayCollection $tags): void
-    {
-        $this->tags = $tags;
-    }
-
     /**
      * @return Collection<int, Ingredient>
      */
@@ -170,4 +166,5 @@ class Meal
 
         return $this;
     }
+
 }

@@ -9,9 +9,9 @@ use App\Entity\Language;
 use App\Entity\Status;
 use App\Entity\Tag;
 use App\Entity\Translation;
+use App\Interface\service\FakeDataGeneratorInterface;
+use App\Interface\service\MealFactoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
-use Faker\Factory;
-use Faker\Generator;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -25,23 +25,24 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class PopulateDBCommand extends Command
 {
-    private EntityManagerInterface $em;
     private const MIN_TAGS_PER_MEAL = 1;
     private const MAX_TAGS_PER_MEAL = 4;
-    private const LANGUAGES = ['hr_HR', 'en_EN', 'cs_CZ', 'de_DE', 'fr_FR'];
     private const NUM_OF_MEALS = 20;
     private const NUMBER_OF_CATEGORIES = 5;
     private const NUMBER_OF_TAGS = 7;
     private const NUMBER_OF_INGREDIENTS = 10;
     private const SHORT_CODE_LENGTH = 2;
+    private const AVAILABLE_STATUSES = ['created', 'modified', 'deleted'];
     private array $categories = [];
     private array $ingredients = [];
     private array $tags = [];
 
-    public function __construct(EntityManagerInterface $em, string $name = null)
+    public function __construct(private EntityManagerInterface $em,
+                                private MealFactoryInterface $mealFactory,
+                                private FakeDataGeneratorInterface $dataGenerator,
+                                private array $languages = [],
+                                string $name = null)
     {
-        $this->em = $em;
-
         parent::__construct($name);
     }
 
@@ -73,51 +74,36 @@ class PopulateDBCommand extends Command
 
     private function fillDatabase(): void
     {
-        $statuses = $this->createAndSaveStatuses();
+        $this->createAndSaveStatuses();
         $this->createAndSaveLanguages();
-        $languageFakers = $this->getLanguageFakers();
+        $this->createAndSaveCategories();
+        $this->createAndSaveIngredients();
+        $this->createAndSaveTags();
 
-        $codeFaker = Factory::create();
-        $codeFaker->seed(100);
+        $this->em->flush();
 
-        for($i = 0; $i < self::NUMBER_OF_CATEGORIES; $i++) {
-            $this->categories[] = $this->createAndSaveCategory($codeFaker, $languageFakers);
-        }
+        $dateTimes = $this->dataGenerator->generateDateTimes(self::NUM_OF_MEALS);
+        $uniqueCodes = $this->dataGenerator->generateUniqueWords(self::NUM_OF_MEALS * 2);
+        $this->createAndSaveTranslations($uniqueCodes);
 
-        for($i = 0; $i < self::NUMBER_OF_INGREDIENTS; $i++) {
-            $this->ingredients[] = $this->createAndSaveIngredient($codeFaker, $languageFakers);
-        }
-
-        for($i = 0; $i < self::NUMBER_OF_TAGS; $i++) {
-            $this->tags[] = $this->createAndSaveTag($codeFaker, $languageFakers);
-        }
-
-        $this->createAndSaveMeals($codeFaker, $statuses, $languageFakers);
+        $this->createAndSaveMeals($uniqueCodes, $dateTimes);
 
         $this->em->flush();
     }
 
-    private function createAndSaveStatuses(): array
+    private function createAndSaveStatuses(): void
     {
-        $statusCreated = new Status();
-        $statusCreated->setName('created');
+        foreach (self::AVAILABLE_STATUSES as $statusName) {
+            $status = new Status();
+            $status->setName($statusName);
 
-        $statusModified = new Status();
-        $statusModified->setName('modified');
-
-        $statusDeleted = new Status();
-        $statusDeleted->setName('deleted');
-
-        $this->em->persist($statusModified);
-        $this->em->persist($statusCreated);
-        $this->em->persist($statusDeleted);
-
-        return [$statusCreated, $statusDeleted, $statusModified];
+            $this->em->persist($status);
+        }
     }
 
     private function createAndSaveLanguages(): void
     {
-        foreach (self::LANGUAGES as $lang) {
+        foreach ($this->languages as $lang) {
             $language = new Language();
             $language->setCode($lang);
             $language->setShortCode(substr($lang, 0, 2));
@@ -126,36 +112,58 @@ class PopulateDBCommand extends Command
         }
     }
 
-    private function getLanguageFakers(): array
+    private function createAndSaveCategories(): void
     {
-        $languageFakers = [];
-        foreach (self::LANGUAGES as $lang) {
-            $langFaker = Factory::create($lang);
-            $langFaker->seed(100);
-            $languageFakers[$lang] = $langFaker;
-        }
+        for($i = 0; $i < self::NUMBER_OF_CATEGORIES; $i++) {
+            $slug = $this->dataGenerator->generateUniqueSlug();
+            $nameCode = $this->dataGenerator->generateUniqueCity();
+            $this->categories[] = $this->createAndSaveCategory($slug, $nameCode);
 
-        return $languageFakers;
+            foreach ($this->languages as $lang) {
+                $this->createAndSaveTranslation($nameCode, $lang);
+            }
+        }
     }
 
-    private function createAndSaveMeals(Generator $basicFaker, array $statuses, array $languageFakers): void
+    private function createAndSaveIngredients(): void
     {
-        for ($i = 0; $i < self::NUM_OF_MEALS; $i++) {
-            $meal = new Meal();
+        for($i = 0; $i < self::NUMBER_OF_INGREDIENTS; $i++) {
+            $slug = $this->dataGenerator->generateUniqueSlug();
+            $nameCode = $this->dataGenerator->generateUniqueWord();
+            $this->ingredients[] = $this->createAndSaveIngredient($slug, $nameCode);
 
-            $meal->setTitleCode($basicFaker->unique()->word());
-            $meal->setDescriptionCode($basicFaker->unique()->word());
-            $meal->setStatus($statuses[mt_rand(0, sizeof($statuses) - 1)]);
-            $meal->setDateModified($basicFaker->dateTime());
-
-            foreach (self::LANGUAGES as $lang) {
-                $this->createAndSaveTranslation($meal->getTitleCode(), $lang, $languageFakers[$lang]);
-                $this->createAndSaveTranslation($meal->getDescriptionCode(), $lang, $languageFakers[$lang]);
+            foreach($this->languages as $lang) {
+                $this->createAndSaveTranslation($nameCode, $lang);
             }
+        }
+    }
 
-            if (mt_rand(0, 1)) {
-                $meal->setCategory($this->categories[mt_rand(0, self::NUMBER_OF_CATEGORIES - 1)]);
+    private function createAndSaveTags(): void
+    {
+        for($i = 0; $i < self::NUMBER_OF_TAGS; $i++) {
+            $slug = $this->dataGenerator->generateUniqueSlug();
+            $nameCode = $this->dataGenerator->generateUniqueWord();
+            $this->tags[] = $this->createAndSaveTag($slug, $nameCode);
+
+            foreach($this->languages as $lang) {
+                $this->createAndSaveTranslation($nameCode, $lang);
             }
+        }
+    }
+
+    private function createAndSaveMeals(array $uniqueCodes, array $dateTimes): void
+    {
+        for ($i = 0; $i < self::NUM_OF_MEALS * 2; $i++) {
+            $titleCode = $uniqueCodes[$i];
+            $descCode = $uniqueCodes[$i];
+
+            $statusName = self::AVAILABLE_STATUSES[mt_rand(0, sizeof(self::AVAILABLE_STATUSES) - 1)];
+            $status = $this->em->getRepository(Status::class)->findOneBy(['name' => $statusName]);
+
+            $dateModified = $dateTimes[$i % 10];
+            $category = mt_rand(0, 1) == 1 ?  $this->categories[mt_rand(0, self::NUMBER_OF_CATEGORIES - 1)] : null;
+
+            $meal = $this->mealFactory->create($titleCode, $descCode, $status, $dateModified, $category);
 
             $numOfTags = mt_rand(self::MIN_TAGS_PER_MEAL, self::MAX_TAGS_PER_MEAL);
             for ($j = 0; $j < $numOfTags; $j++) {
@@ -171,60 +179,58 @@ class PopulateDBCommand extends Command
         }
     }
 
-    private function createAndSaveTranslation(string $code, string $lang, $langFaker): void
+    private function createAndSaveTranslation(string $code, string $lang): void
     {
         $translation = new Translation();
         $translation->setCode($code);
         $translation->setLanguageCode($lang);
         $translation->setShortCode(substr($lang, 0, self::SHORT_CODE_LENGTH));
-        $translation->setTranslation($langFaker->name());
+        $translation->setTranslation($this->dataGenerator->generateNameInLanguage($lang));
 
         $this->em->persist($translation);
     }
 
-    private function createAndSaveCategory(Generator $basicFaker, array $languageFakers): Category
+    private function createAndSaveCategory(string $slug, string $nameCode): Category
     {
         $category = new Category();
-        $category->setSlug($basicFaker->unique()->slug());
-        $category->setNameCode($basicFaker->unique()->city());
+        $category->setSlug($slug);
+        $category->setNameCode($nameCode);
 
         $this->em->persist($category);
-
-        foreach (self::LANGUAGES as $lang) {
-            $this->createAndSaveTranslation($category->getNameCode(), $lang, $languageFakers[$lang]);
-        }
 
         return $category;
     }
 
-    private function createAndSaveTag(Generator $basicFaker, array $languageFakers): Tag
+    private function createAndSaveTag(string $slug, string $nameCode): Tag
     {
         $tag = new Tag();
-        $tag->setSlug($basicFaker->unique()->slug());
-        $tag->setNameCode($basicFaker->unique()->word());
+        $tag->setSlug($slug);
+        $tag->setNameCode($nameCode);
 
         $this->em->persist($tag);
-
-        foreach (self::LANGUAGES as $lang) {
-            $this->createAndSaveTranslation($tag->getNameCode(), $lang, $languageFakers[$lang]);
-        }
 
         return $tag;
     }
 
-    private function createAndSaveIngredient(Generator $basicFaker, array $languageFakers): Ingredient
+    private function createAndSaveIngredient(string $slug, string $nameCode): Ingredient
     {
         $ingredient = new Ingredient();
-        $ingredient->setSlug($basicFaker->unique()->slug());
-        $ingredient->setNameCode($basicFaker->unique()->word());
+        $ingredient->setSlug($slug);
+        $ingredient->setNameCode($nameCode);
 
         $this->em->persist($ingredient);
 
-        foreach (self::LANGUAGES as $lang) {
-            $this->createAndSaveTranslation($ingredient->getNameCode(), $lang, $languageFakers[$lang]);
-        }
-
         return $ingredient;
+    }
+
+    private function createAndSaveTranslations(array $codes): void
+    {
+        foreach($codes as $code) {
+            foreach ($this->languages as $lang) {
+                $this->createAndSaveTranslation($code, $lang);
+                $this->createAndSaveTranslation($code, $lang);
+            }
+        }
     }
 
 }

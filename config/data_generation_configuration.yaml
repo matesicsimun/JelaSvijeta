@@ -1,0 +1,7 @@
+data_generation_configuration:
+  languages:
+    - fr_FR
+    - en_EN
+    - de_DE
+    - hr_HR
+    - cs_CZ

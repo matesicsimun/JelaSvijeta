@@ -24,7 +24,7 @@ class MealService
     private const DEFAULT_PAGE_ITEMS = 10;
     private const ITEMS_PER_PAGE_LIMIT = 20;
 
-    public function __construct(private EntityManagerInterface $em)
+    public function __construct(private EntityManagerInterface $en)
     {
     }
 
