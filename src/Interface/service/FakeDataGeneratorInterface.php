@@ -16,4 +16,6 @@ interface FakeDataGeneratorInterface
     public function generateUniqueCity(): string;
 
     public function generateNameInLanguage(string $lang): string;
+
+    public function generateUniqueSlugs(int $numberOfSlugs): array;
 }

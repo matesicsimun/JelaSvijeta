@@ -2,15 +2,15 @@
 
 namespace App\Command;
 
-use App\Entity\Category;
 use App\Entity\Meal;
-use App\Entity\Ingredient;
-use App\Entity\Language;
 use App\Entity\Status;
-use App\Entity\Tag;
-use App\Entity\Translation;
+use App\Interface\service\CategoryFactoryInterface;
 use App\Interface\service\FakeDataGeneratorInterface;
+use App\Interface\service\IngredientFactoryInterface;
+use App\Interface\service\LanguageFactoryInterface;
 use App\Interface\service\MealFactoryInterface;
+use App\Interface\service\TagFactoryInterface;
+use App\Interface\service\TranslationFactoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -39,6 +39,11 @@ class PopulateDBCommand extends Command
 
     public function __construct(private EntityManagerInterface $em,
                                 private MealFactoryInterface $mealFactory,
+                                private TagFactoryInterface $tagFactory,
+                                private LanguageFactoryInterface $languageFactory,
+                                private CategoryFactoryInterface $categoryFactory,
+                                private IngredientFactoryInterface $ingredientFactory,
+                                private TranslationFactoryInterface $translationFactory,
                                 private FakeDataGeneratorInterface $dataGenerator,
                                 private array $languages = [],
                                 string $name = null)
@@ -67,26 +72,31 @@ class PopulateDBCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function isPopulated(): bool
-    {
-        return $this->em->getRepository(Meal::class)->count([]) != 0;
-    }
-
     private function fillDatabase(): void
     {
+        $categorySlugs = $this->dataGenerator->generateUniqueSlugs(self::NUMBER_OF_CATEGORIES);
+        $categoryNameCodes = $this->dataGenerator->generateUniqueWords(self::NUMBER_OF_CATEGORIES);
+        $ingredientSlugs = $this->dataGenerator->generateUniqueSlugs(self::NUM_OF_MEALS);
+        $ingredientNameCodes = $this->dataGenerator->generateUniqueWords(self::NUM_OF_MEALS);
+        $tagSlugs = $this->dataGenerator->generateUniqueSlugs(self::NUMBER_OF_TAGS);
+        $tagNameCodes = $this->dataGenerator->generateUniqueWords(self::NUMBER_OF_TAGS);
+        $dateTimes = $this->dataGenerator->generateDateTimes(self::NUM_OF_MEALS);
+        $mealCodes = $this->dataGenerator->generateUniqueWords(self::NUM_OF_MEALS * 2);
+
         $this->createAndSaveStatuses();
         $this->createAndSaveLanguages();
-        $this->createAndSaveCategories();
-        $this->createAndSaveIngredients();
-        $this->createAndSaveTags();
+        $this->createAndSaveCategories($categorySlugs, $categoryNameCodes);
+        $this->createAndSaveIngredients($ingredientSlugs, $ingredientNameCodes);
+        $this->createAndSaveTags($tagSlugs, $tagNameCodes);
 
         $this->em->flush();
 
-        $dateTimes = $this->dataGenerator->generateDateTimes(self::NUM_OF_MEALS);
-        $uniqueCodes = $this->dataGenerator->generateUniqueWords(self::NUM_OF_MEALS * 2);
-        $this->createAndSaveTranslations($uniqueCodes);
+        $this->createAndSaveMeals($mealCodes, $dateTimes);
 
-        $this->createAndSaveMeals($uniqueCodes, $dateTimes);
+        $this->createAndSaveTranslations($ingredientSlugs);
+        $this->createAndSaveTranslations($ingredientNameCodes);
+        $this->createAndSaveTranslations($tagNameCodes);
+        $this->createAndSaveTranslations($mealCodes);
 
         $this->em->flush();
     }
@@ -104,50 +114,35 @@ class PopulateDBCommand extends Command
     private function createAndSaveLanguages(): void
     {
         foreach ($this->languages as $lang) {
-            $language = new Language();
-            $language->setCode($lang);
-            $language->setShortCode(substr($lang, 0, 2));
-
+            $language = $this->languageFactory->create($lang, substr($lang, 0, 2));
             $this->em->persist($language);
         }
     }
 
-    private function createAndSaveCategories(): void
+    private function createAndSaveCategories(array $slugs, array $nameCodes): void
     {
         for($i = 0; $i < self::NUMBER_OF_CATEGORIES; $i++) {
-            $slug = $this->dataGenerator->generateUniqueSlug();
-            $nameCode = $this->dataGenerator->generateUniqueCity();
-            $this->categories[] = $this->createAndSaveCategory($slug, $nameCode);
-
-            foreach ($this->languages as $lang) {
-                $this->createAndSaveTranslation($nameCode, $lang);
-            }
+            $category = $this->categoryFactory->create($slugs[$i], $nameCodes[$i]);
+            $this->em->persist($category);
+            $this->categories[] = $category;
         }
     }
 
-    private function createAndSaveIngredients(): void
+    private function createAndSaveIngredients(array $slugs, array $nameCodes): void
     {
         for($i = 0; $i < self::NUMBER_OF_INGREDIENTS; $i++) {
-            $slug = $this->dataGenerator->generateUniqueSlug();
-            $nameCode = $this->dataGenerator->generateUniqueWord();
-            $this->ingredients[] = $this->createAndSaveIngredient($slug, $nameCode);
-
-            foreach($this->languages as $lang) {
-                $this->createAndSaveTranslation($nameCode, $lang);
-            }
+            $ingredient = $this->ingredientFactory->create($slugs[$i], $nameCodes[$i]);
+            $this->em->persist($ingredient);
+            $this->ingredients[] = $ingredient;
         }
     }
 
-    private function createAndSaveTags(): void
+    private function createAndSaveTags(array $slugs, array $nameCodes): void
     {
         for($i = 0; $i < self::NUMBER_OF_TAGS; $i++) {
-            $slug = $this->dataGenerator->generateUniqueSlug();
-            $nameCode = $this->dataGenerator->generateUniqueWord();
-            $this->tags[] = $this->createAndSaveTag($slug, $nameCode);
-
-            foreach($this->languages as $lang) {
-                $this->createAndSaveTranslation($nameCode, $lang);
-            }
+            $tag = $this->tagFactory->create($slugs[$i], $nameCodes[$i]);
+            $this->em->persist($tag);
+            $this->tags[] = $tag;
         }
     }
 
@@ -181,46 +176,9 @@ class PopulateDBCommand extends Command
 
     private function createAndSaveTranslation(string $code, string $lang): void
     {
-        $translation = new Translation();
-        $translation->setCode($code);
-        $translation->setLanguageCode($lang);
-        $translation->setShortCode(substr($lang, 0, self::SHORT_CODE_LENGTH));
-        $translation->setTranslation($this->dataGenerator->generateNameInLanguage($lang));
-
+        $translation = $this->translationFactory->create($code, $lang, substr($lang, 0, self::SHORT_CODE_LENGTH),
+                                                            $this->dataGenerator->generateNameInLanguage($lang));
         $this->em->persist($translation);
-    }
-
-    private function createAndSaveCategory(string $slug, string $nameCode): Category
-    {
-        $category = new Category();
-        $category->setSlug($slug);
-        $category->setNameCode($nameCode);
-
-        $this->em->persist($category);
-
-        return $category;
-    }
-
-    private function createAndSaveTag(string $slug, string $nameCode): Tag
-    {
-        $tag = new Tag();
-        $tag->setSlug($slug);
-        $tag->setNameCode($nameCode);
-
-        $this->em->persist($tag);
-
-        return $tag;
-    }
-
-    private function createAndSaveIngredient(string $slug, string $nameCode): Ingredient
-    {
-        $ingredient = new Ingredient();
-        $ingredient->setSlug($slug);
-        $ingredient->setNameCode($nameCode);
-
-        $this->em->persist($ingredient);
-
-        return $ingredient;
     }
 
     private function createAndSaveTranslations(array $codes): void
@@ -231,6 +189,11 @@ class PopulateDBCommand extends Command
                 $this->createAndSaveTranslation($code, $lang);
             }
         }
+    }
+
+    private function isPopulated(): bool
+    {
+        return $this->em->getRepository(Meal::class)->count([]) != 0;
     }
 
 }

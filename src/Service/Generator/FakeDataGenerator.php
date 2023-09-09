@@ -71,4 +71,14 @@ class FakeDataGenerator implements FakeDataGeneratorInterface
     {
         return $this->faker->unique()->word();
     }
+
+    public function generateUniqueSlugs(int $numberOfSlugs): array
+    {
+        $slugs = [];
+        for($i = 0; $i < $numberOfSlugs; $i++) {
+            $slugs[] = $this->generateUniqueSlug();
+        }
+
+        return $slugs;
+    }
 }
